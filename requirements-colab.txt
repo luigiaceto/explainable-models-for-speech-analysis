@@ -1,0 +1,14 @@
+transformers
+datasets[audio]
+huggingface-hub
+soundfile
+librosa
+numpy
+pandas
+scikit-learn
+tqdm
+matplotlib
+seaborn
+ipywidgets
+torchaudio
+torchcodec

@@ -218,8 +218,20 @@ __marimo__/
 .streamlit/secrets.toml
 
 # ADDED MANUALLY
-project2.pdf
-AGENTS.md
-project_idea.png
 appunti/
 .DS_Store
+
+# Project artifacts
+data/raw/
+data/features/
+checkpoints/
+reports/
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+wandb/
+mlruns/
+.vscode
+TODO.md
