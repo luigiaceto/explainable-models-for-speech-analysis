@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ADDED MANUALLY
+project2.pdf
+AGENTS.md
+project_idea.png
+appunti/
+.DS_Store
