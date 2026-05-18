@@ -4,7 +4,17 @@ from torch import nn
 
 
 class BlackBoxEmotionClassifier(nn.Module):
-    """MLP baseline trained on frozen wav2vec2 mean+std pooled embeddings."""
+    """MLP baseline trained on frozen wav2vec2 mean+std pooled embeddings.
+
+    audio
+    -> wav2vec2 frozen
+    -> embedding 1536
+    -> Linear 1536 -> 256
+    -> GELU
+    -> Linear 256 -> 128
+    -> GELU
+    -> Linear 128 -> 6 emotions
+    """
 
     def __init__(
         self,

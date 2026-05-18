@@ -26,6 +26,10 @@ We have to compare the CBM with a black box model, that is made similar to the C
 ## Explainability metrics
 Finally, we have to compute explainability metrics such as faithfulness
 
+## Hardware resources
+- MacBook Air M4
+- Google Colab free
+
 # PROJECT STRUCTURE IDEA
 - data/ cotaining the dataset (it will be downloaded)
 - data/features/ containing the embeddings (mean+std pooling) of the audio traces
