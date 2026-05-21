@@ -12,7 +12,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from src.data.crema_d import CremaDFeatureDataset, EMOTION_NAMES, load_features
-from src.evaluation.metrics import compute_classification_metrics
+from src.evaluation.metrics import compute_summary_classification_metrics
 from src.models.blackbox import BlackBoxEmotionClassifier
 from src.utils.utils import device_or_default, set_seed
 
@@ -161,7 +161,7 @@ def _run_epoch(
 
     y_true_array = np.concatenate(y_true)
     y_pred_array = np.concatenate(y_pred)
-    metrics = compute_classification_metrics(y_true_array, y_pred_array, EMOTION_NAMES)
+    metrics = compute_summary_classification_metrics(y_true_array, y_pred_array)
     metrics["loss"] = total_loss / len(loader.dataset)
     return metrics
 

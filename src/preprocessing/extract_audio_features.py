@@ -18,12 +18,25 @@ DEFAULT_MODEL_NAME = "microsoft/wavlm-base-plus"
 DEFAULT_POOLING = "mean_std"
 
 
-def _load_waveform(audio_path: Path, target_sampling_rate: int) -> np.ndarray:
+def _load_waveform(
+    audio_path: Path,
+    target_sampling_rate: int,
+    resamplers: dict[tuple[int, int], torchaudio.transforms.Resample] | None = None
+) -> np.ndarray:
     waveform, sampling_rate = torchaudio.load(audio_path)
     if waveform.shape[0] > 1:
         waveform = waveform.mean(dim=0, keepdim=True)
     if sampling_rate != target_sampling_rate:
-        resampler = torchaudio.transforms.Resample(sampling_rate, target_sampling_rate)
+        resampler_key = (sampling_rate, target_sampling_rate)
+        if resamplers is None:
+            resampler = torchaudio.transforms.Resample(sampling_rate, target_sampling_rate)
+        else:
+            if resampler_key not in resamplers:
+                resamplers[resampler_key] = torchaudio.transforms.Resample(
+                    sampling_rate,
+                    target_sampling_rate
+                )
+            resampler = resamplers[resampler_key]
         waveform = resampler(waveform)
     return waveform.squeeze(0).numpy()
 
@@ -174,11 +187,12 @@ def extract_audio_features(
         parameter.requires_grad = False
 
     pooled_batches = []
+    resamplers: dict[tuple[int, int], torchaudio.transforms.Resample] = {}
     model_slug = model_name_to_slug(model_name)
     for start in tqdm(range(0, len(metadata), batch_size), desc=f"Extracting {model_slug} features"):
         batch = metadata.iloc[start : start + batch_size]
         waveforms = [
-            _load_waveform(Path(audio_path), sampling_rate)
+            _load_waveform(Path(audio_path), sampling_rate, resamplers)
             for audio_path in batch["audio_path"].tolist()
         ]
         # attention mask is used with the audios since padding is applied in order to have valid
