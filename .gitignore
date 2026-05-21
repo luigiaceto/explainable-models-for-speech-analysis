@@ -216,3 +216,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ADDED MANUALLY
+appunti/
+.DS_Store
+
+# Project artifacts
+data/raw/
+data/features/
+checkpoints/
+reports/
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+wandb/
+mlruns/
+.vscode
+TODO.md
