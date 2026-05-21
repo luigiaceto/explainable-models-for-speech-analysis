@@ -162,7 +162,7 @@ def load_features(
 
 
 class CremaDFeatureDataset(Dataset):
-    """PyTorch dataset backed by precomputed wav2vec2 pooled embeddings."""
+    """PyTorch dataset backed by precomputed pooled audio embeddings."""
 
     def __init__(
         self,

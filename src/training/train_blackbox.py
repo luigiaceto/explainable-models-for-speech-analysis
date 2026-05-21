@@ -20,6 +20,9 @@ from src.utils.utils import device_or_default, set_seed
 @dataclass
 class TrainingConfig:
     input_dim: int = 1536 # MLP input
+    feature_extractor_name: str | None = None
+    encoder_embedding_dim: int | None = None
+    pooling: str | None = None
     hidden_dims: tuple[int, int] = (256, 128) # MLP progressive projection dims
     num_classes: int = 6
     dropout: float = 0.2

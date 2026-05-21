@@ -1,17 +1,21 @@
 from __future__ import annotations
 import json
 from pathlib import Path
+from typing import Any
 import numpy as np
 import pandas as pd
 import torch
 import torchaudio
 from tqdm.auto import tqdm
-from transformers import AutoFeatureExtractor, Wav2Vec2Model
+from transformers import AutoFeatureExtractor, AutoModel
 from src.data.crema_d import load_metadata, resolve_feature_paths
+from src.utils.audio_features import pooled_feature_dim
+from src.utils.naming import model_name_to_slug
 from src.utils.utils import device_or_default
 
 
-DEFAULT_MODEL_NAME = "facebook/wav2vec2-base"
+DEFAULT_MODEL_NAME = "microsoft/wavlm-base-plus"
+DEFAULT_POOLING = "mean_std"
 
 
 def _load_waveform(audio_path: Path, target_sampling_rate: int) -> np.ndarray:
@@ -25,7 +29,7 @@ def _load_waveform(audio_path: Path, target_sampling_rate: int) -> np.ndarray:
 
 
 def _feature_attention_mask(
-    model: Wav2Vec2Model,
+    model: torch.nn.Module,
     attention_mask: torch.Tensor,
     sequence_length: int,
 ) -> torch.Tensor:
@@ -55,6 +59,28 @@ def _masked_mean_std_pooling(
     return torch.cat([mean, std], dim=-1)
 
 
+def _masked_mean_pooling(
+    hidden_states: torch.Tensor,
+    feature_mask: torch.Tensor
+) -> torch.Tensor:
+    mask = feature_mask.unsqueeze(-1).to(dtype=hidden_states.dtype)
+    denominator = mask.sum(dim=1).clamp(min=1.0)
+    return (hidden_states * mask).sum(dim=1) / denominator
+
+
+def _pool_hidden_states(
+    hidden_states: torch.Tensor,
+    feature_mask: torch.Tensor,
+    pooling: str
+) -> torch.Tensor:
+    normalized_pooling = pooling.lower()
+    if normalized_pooling == "mean_std":
+        return _masked_mean_std_pooling(hidden_states, feature_mask)
+    if normalized_pooling == "mean":
+        return _masked_mean_pooling(hidden_states, feature_mask)
+    raise ValueError(f"Unsupported pooling: {pooling}")
+
+
 def _metadata_with_audio_paths(metadata: pd.DataFrame, audio_dir: Path) -> pd.DataFrame:
     metadata = metadata.copy()
     if "audio_path" not in metadata.columns:
@@ -68,26 +94,58 @@ def _metadata_with_audio_paths(metadata: pd.DataFrame, audio_dir: Path) -> pd.Da
     return metadata
 
 
-def extract_wav2vec_features(
+def _validate_expected_encoder_embedding_dim(
+    model_config: Any,
+    expected_encoder_embedding_dim: int | None
+) -> None:
+    if expected_encoder_embedding_dim is None:
+        return
+
+    hidden_size = getattr(model_config, "hidden_size", None)
+    if hidden_size is None:
+        return
+
+    if int(hidden_size) != expected_encoder_embedding_dim:
+        raise ValueError(
+            f"Expected encoder embedding dim {expected_encoder_embedding_dim}, "
+            f"but model hidden size is {hidden_size}"
+        )
+
+
+def extract_audio_features(
     metadata_csv: str | Path,
     audio_dir: str | Path,
     output_dir: str | Path,
     model_name: str = DEFAULT_MODEL_NAME,
+    expected_encoder_embedding_dim: int | None = None,
+    pooling: str = DEFAULT_POOLING,
     batch_size: int = 8,
     sampling_rate: int = 16_000,
     device: str | None = None,
     overwrite: bool = False
 ) -> dict[str, Path]:
-    """Extract mean+std pooled wav2vec2 embeddings for every CREMA-D clip."""
+    """Extract pooled embeddings from a frozen audio encoder."""
     metadata_csv = Path(metadata_csv)
     audio_dir = Path(audio_dir)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     paths = resolve_feature_paths(output_dir)
     config_path = output_dir / "feature_config.json"
+    expected_pooled_feature_dim = (
+        None
+        if expected_encoder_embedding_dim is None
+        else pooled_feature_dim(expected_encoder_embedding_dim, pooling)
+    )
 
-    # prevent repeating extraction if it has already been made
     if paths.feature_path.exists() and paths.metadata_path.exists() and not overwrite:
+        if expected_pooled_feature_dim is not None:
+            existing_features = np.load(paths.feature_path, mmap_mode="r")
+            if existing_features.shape[1] != expected_pooled_feature_dim:
+                raise ValueError(
+                    f"Expected pooled feature dim {expected_pooled_feature_dim}, "
+                    f"but existing features have dim {existing_features.shape[1]}: "
+                    f"{paths.feature_path}"
+                )
         return {
             "features": paths.feature_path,
             "metadata": paths.metadata_path,
@@ -97,14 +155,27 @@ def extract_wav2vec_features(
     metadata = _metadata_with_audio_paths(load_metadata(metadata_csv), audio_dir)
     compute_device = device_or_default(device)
 
+    # audio pre-processor for the audio encoder. Takes raw waveforms, apply normalization, pads, ecc.
+    # It prepares the audio to be fed to the encoder model.
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_name)
-    model = Wav2Vec2Model.from_pretrained(model_name).to(compute_device)
+    # audio encoder which produces embeddings from the input audio
+    model = AutoModel.from_pretrained(model_name).to(compute_device)
+    _validate_expected_encoder_embedding_dim(model.config, expected_encoder_embedding_dim)
+
+    model_hidden_size = getattr(model.config, "hidden_size", None)
+    encoder_embedding_dim = (
+        int(model_hidden_size)
+        if model_hidden_size is not None
+        else expected_encoder_embedding_dim
+    )
+
     model.eval()
     for parameter in model.parameters():
         parameter.requires_grad = False
 
     pooled_batches = []
-    for start in tqdm(range(0, len(metadata), batch_size), desc="Extracting wav2vec2 features"):
+    model_slug = model_name_to_slug(model_name)
+    for start in tqdm(range(0, len(metadata), batch_size), desc=f"Extracting {model_slug} features"):
         batch = metadata.iloc[start : start + batch_size]
         waveforms = [
             _load_waveform(Path(audio_path), sampling_rate)
@@ -132,22 +203,37 @@ def extract_wav2vec_features(
             # We need this translated mask otherwise during the pooling process we would include
             # also hidden states obtained from padded audio section which is useless -> we want to
             # pool only valid audio frames
-            feature_mask = _feature_attention_mask(
-                model=model,
-                attention_mask=inputs["attention_mask"],
-                sequence_length=hidden_states.shape[1]
-            )
-            pooled = _masked_mean_std_pooling(hidden_states, feature_mask)
+            if "attention_mask" in inputs:
+                feature_mask = _feature_attention_mask(
+                    model=model,
+                    attention_mask=inputs["attention_mask"],
+                    sequence_length=hidden_states.shape[1]
+                )
+            else:
+                feature_mask = torch.ones(
+                    hidden_states.shape[:2],
+                    dtype=torch.bool,
+                    device=hidden_states.device
+                )
+            pooled = _pool_hidden_states(hidden_states, feature_mask, pooling)
         pooled_batches.append(pooled.cpu().numpy().astype(np.float32))
 
     features = np.concatenate(pooled_batches, axis=0)
+    if expected_pooled_feature_dim is not None and features.shape[1] != expected_pooled_feature_dim:
+        raise ValueError(
+            f"Expected pooled feature dim {expected_pooled_feature_dim}, got {features.shape[1]}"
+        )
+
     np.save(paths.feature_path, features)
     metadata.to_csv(paths.metadata_path, index=False)
 
     config = {
         "model_name": model_name,
-        "pooling": "masked_mean_std",
+        "model_slug": model_slug,
+        "pooling": pooling,
         "sampling_rate": sampling_rate,
+        "encoder_embedding_dim": encoder_embedding_dim,
+        "feature_dim": int(features.shape[1]),
         "feature_shape": list(features.shape),
         "source_metadata": str(metadata_csv),
     }

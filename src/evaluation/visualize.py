@@ -65,7 +65,7 @@ def plot_blackbox_embedding_pca(
 ) -> dict[str, Any]:
     """Plot two-dimensional PCA projections of black-box embedding spaces.
 
-    The first panel shows the frozen wav2vec2 mean+std pooled features. The
+    The first panel shows the frozen audio encoder mean+std pooled features. The
     second panel shows the trained black-box representation before the final
     classification layer.
     """
@@ -88,16 +88,16 @@ def plot_blackbox_embedding_pca(
         plot_indices = np.sort(rng.choice(plot_indices, size=sample_limit, replace=False))
 
     plot_metadata = split_metadata.iloc[plot_indices].reset_index(drop=True)
-    wav2vec_embeddings = np.asarray(features[plot_indices], dtype=np.float32)
+    feature_embeddings = np.asarray(features[plot_indices], dtype=np.float32)
     mlp_embeddings = _blackbox_penultimate_embeddings(
-        embeddings=wav2vec_embeddings,
+        embeddings=feature_embeddings,
         checkpoint_path=checkpoint_path,
         batch_size=batch_size,
         device=device
     )
 
-    wav2vec_projection, wav2vec_pca = _pca_projection(
-        wav2vec_embeddings,
+    feature_projection, feature_pca = _pca_projection(
+        feature_embeddings,
         plot_metadata,
         random_state
     )
@@ -110,7 +110,7 @@ def plot_blackbox_embedding_pca(
     palette = dict(zip(EMOTION_NAMES, sns.color_palette("tab10", len(EMOTION_NAMES))))
     fig, axes = plt.subplots(1, 2, figsize=figsize, constrained_layout=True)
     plot_specs = [
-        (wav2vec_projection, wav2vec_pca, "Frozen wav2vec2 mean+std features"),
+        (feature_projection, feature_pca, "Frozen audio encoder mean+std features"),
         (mlp_projection, mlp_pca, "Black-box penultimate representations"),
     ]
 
@@ -168,8 +168,8 @@ def plot_blackbox_embedding_pca(
         "figure": fig,
         "axes": axes,
         "output_path": saved_output_path,
-        "wav2vec_projection": wav2vec_projection,
-        "wav2vec_pca": wav2vec_pca,
+        "feature_projection": feature_projection,
+        "feature_pca": feature_pca,
         "mlp_projection": mlp_projection,
         "mlp_pca": mlp_pca
     }

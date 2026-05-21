@@ -7,12 +7,19 @@ black-box neural baseline.
 At the moment, the implemented part of the project is the black-box baseline:
 
 1. download the CREMA-D audio dataset;
-2. extract frozen `facebook/wav2vec2-base` embeddings;
+2. extract frozen audio encoder embeddings, currently `microsoft/wavlm-base-plus`;
 3. apply mean + standard-deviation pooling;
 4. train an MLP emotion classifier;
 5. evaluate accuracy, macro F1, weighted F1, classification report, and confusion matrix.
 
 The workflow is coordinated from `experiments_guide.ipynb`.
+
+The notebook defines the active audio encoder with a single tuple,
+`FEATURE_EXTRACTOR = ("microsoft/wavlm-base-plus", 768)`, where the second
+value is the encoder hidden-state size before pooling. The final MLP input size
+is derived from the pooling method. Feature and checkpoint directories are also
+derived from the model name, for example `data/features/wavlm_base_plus_mean_std/`
+and `checkpoints/blackbox_wavlm_base_plus/`.
 
 ## Current Contents
 
@@ -21,7 +28,7 @@ The current codebase contains:
 - a CREMA-D audio download pipeline based on an audio-only Hugging Face mirror;
 - metadata parsing from CREMA-D filenames;
 - dataset statistics utilities;
-- frozen wav2vec2 feature extraction with masked mean + standard-deviation pooling;
+- frozen audio encoder feature extraction with masked mean + standard-deviation pooling;
 - a PyTorch dataset for precomputed audio embeddings;
 - an MLP black-box emotion classifier;
 - a training loop with stratified train/validation/test split, weighted cross-entropy,
@@ -45,7 +52,7 @@ metrics are not implemented yet.
 - `src/data/`: dataset-related code, including CREMA-D metadata parsing, class
   mappings, dataset statistics, feature loading, and the PyTorch feature dataset.
 - `src/preprocessing/`: preprocessing code for downloading CREMA-D audio and
-  extracting frozen wav2vec2 embeddings.
+  extracting frozen audio encoder embeddings.
 - `src/models/`: neural network definitions. Currently it contains the black-box
   MLP classifier.
 - `src/training/`: training code. Currently it contains the black-box training
