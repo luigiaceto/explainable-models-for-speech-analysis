@@ -196,16 +196,16 @@ def train_blackbox(
     train_loader = _make_loader(
         features,
         metadata,
-        config.batch_size,
-        config.num_workers,
+        batch_size=config.batch_size,
+        num_workers=config.num_workers,
         split_name="train",
         shuffle=True
     )
     val_loader = _make_loader(
         features,
         metadata,
-        config.batch_size,
-        config.num_workers,
+        batch_size=config.batch_size,
+        num_workers=config.num_workers,
         split_name="val",
         shuffle=False
     )
