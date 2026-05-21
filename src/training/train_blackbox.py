@@ -19,8 +19,8 @@ from src.utils.utils import device_or_default, set_seed
 
 @dataclass
 class TrainingConfig:
-    input_dim: int = 1536
-    hidden_dims: tuple[int, int] = (256, 128)
+    input_dim: int = 1536 # MLP input
+    hidden_dims: tuple[int, int] = (256, 128) # MLP progressive projection dims
     num_classes: int = 6
     dropout: float = 0.2
     activation: str = "gelu"
@@ -34,8 +34,8 @@ class TrainingConfig:
     random_state: int = 42
     num_workers: int = 0
     use_class_weights: bool = True
-    early_stopping_patience: int = 10
-    monitor_metric: str = "macro_f1"
+    early_stopping_patience: int = 10 # if the model doesn't improve after N epochs we stop the training
+    monitor_metric: str = "macro_f1" # metric used to check if the model is improving on the validation set
     device: str | None = None
     verbose: bool = True
 
@@ -45,7 +45,7 @@ def create_stratified_splits(
     train_size: float,
     val_size: float,
     test_size: float,
-    random_state: int,
+    random_state: int
 ) -> pd.DataFrame:
     """Create stratified train/validation/test splits by emotion label."""
     metadata = metadata.reset_index(drop=True)
@@ -55,12 +55,13 @@ def create_stratified_splits(
 
     indices = np.arange(len(metadata))
     labels = metadata["label"].to_numpy()
-    # split from entire dataset to [train] and [val+test]
+
+    # split from [dataset=train+val+test] to [train] and [val+test]
     train_indices, temp_indices = train_test_split(
         indices,
         train_size=train_size,
         random_state=random_state,
-        stratify=labels,
+        stratify=labels
     )
     # split from [val+test] to [val] and [test]
     relative_val_size = val_size / (val_size + test_size)
@@ -68,7 +69,7 @@ def create_stratified_splits(
         temp_indices,
         train_size=relative_val_size,
         random_state=random_state,
-        stratify=labels[temp_indices],
+        stratify=labels[temp_indices]
     )
 
     splits = metadata.copy()
@@ -85,23 +86,29 @@ def _make_loader(
     split_name: str,
     batch_size: int,
     num_workers: int,
-    shuffle: bool,
+    shuffle: bool
 ) -> DataLoader:
     indices = metadata.index[metadata["split"] == split_name].tolist()
-    dataset = CremaDFeatureDataset(features=features, metadata=metadata, indices=indices)
+
+    dataset = CremaDFeatureDataset(
+        features=features,
+        metadata=metadata,
+        indices=indices
+    )
+
     return DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        pin_memory=torch.cuda.is_available(),
+        pin_memory=torch.cuda.is_available()
     )
 
 
 def _classification_loss(
     metadata: pd.DataFrame,
     config: TrainingConfig,
-    device: torch.device,
+    device: torch.device
 ) -> nn.Module:
     if not config.use_class_weights:
         return nn.CrossEntropyLoss()
@@ -110,7 +117,7 @@ def _classification_loss(
     weights = compute_class_weight(
         class_weight="balanced",
         classes=np.arange(config.num_classes),
-        y=train_labels,
+        y=train_labels
     )
     return nn.CrossEntropyLoss(
         weight=torch.as_tensor(weights, dtype=torch.float32, device=device)
@@ -122,7 +129,7 @@ def _run_epoch(
     loader: DataLoader,
     criterion: nn.Module,
     device: torch.device,
-    optimizer: torch.optim.Optimizer | None = None,
+    optimizer: torch.optim.Optimizer | None = None
 ) -> dict[str, Any]:
     training = optimizer is not None
     model.train(training)
@@ -159,9 +166,10 @@ def _run_epoch(
 def train_blackbox(
     feature_dir: str | Path,
     output_dir: str | Path,
-    config: TrainingConfig | None = None,
+    config: TrainingConfig | None = None
 ) -> dict[str, Any]:
     """Train the black-box baseline on precomputed features."""
+    # if a TrainingConfig object isn't passed, we use the default one 
     config = config or TrainingConfig()
     set_seed(config.random_state)
 
@@ -179,7 +187,7 @@ def train_blackbox(
         train_size=config.train_size,
         val_size=config.val_size,
         test_size=config.test_size,
-        random_state=config.random_state,
+        random_state=config.random_state
     )
     splits_path = output_dir / "splits.csv"
     metadata.to_csv(splits_path, index=False)
@@ -188,18 +196,18 @@ def train_blackbox(
     train_loader = _make_loader(
         features,
         metadata,
-        "train",
         config.batch_size,
         config.num_workers,
-        shuffle=True,
+        split_name="train",
+        shuffle=True
     )
     val_loader = _make_loader(
         features,
         metadata,
-        "val",
         config.batch_size,
         config.num_workers,
-        shuffle=False,
+        split_name="val",
+        shuffle=False
     )
 
     model = BlackBoxEmotionClassifier(
@@ -207,13 +215,14 @@ def train_blackbox(
         hidden_dims=config.hidden_dims,
         num_classes=config.num_classes,
         dropout=config.dropout,
-        activation=config.activation,
+        activation=config.activation
     ).to(device)
+    
     criterion = _classification_loss(metadata, config, device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=config.learning_rate,
-        weight_decay=config.weight_decay,
+        weight_decay=config.weight_decay
     )
 
     best_score = -np.inf
@@ -237,7 +246,7 @@ def train_blackbox(
             "val_loss": val_metrics["loss"],
             "val_accuracy": val_metrics["accuracy"],
             "val_macro_f1": val_metrics["macro_f1"],
-            "val_weighted_f1": val_metrics["weighted_f1"],
+            "val_weighted_f1": val_metrics["weighted_f1"]
         }
         history.append(history_row)
 
@@ -250,13 +259,13 @@ def train_blackbox(
                 "loss": float(train_metrics["loss"]),
                 "accuracy": float(train_metrics["accuracy"]),
                 "macro_f1": float(train_metrics["macro_f1"]),
-                "weighted_f1": float(train_metrics["weighted_f1"]),
+                "weighted_f1": float(train_metrics["weighted_f1"])
             }
             best_val_metrics = {
                 "loss": float(val_metrics["loss"]),
                 "accuracy": float(val_metrics["accuracy"]),
                 "macro_f1": float(val_metrics["macro_f1"]),
-                "weighted_f1": float(val_metrics["weighted_f1"]),
+                "weighted_f1": float(val_metrics["weighted_f1"])
             }
             torch.save(
                 {
@@ -267,7 +276,7 @@ def train_blackbox(
                     "best_val_score": best_score,
                     "best_train_metrics": best_train_metrics,
                     "best_val_metrics": best_val_metrics,
-                    "splits_path": str(splits_path),
+                    "splits_path": str(splits_path)
                 },
                 checkpoint_path,
             )
@@ -296,7 +305,7 @@ def train_blackbox(
     pd.DataFrame(history).to_csv(history_path, index=False)
     (output_dir / "training_config.json").write_text(
         json.dumps(asdict(config), indent=2),
-        encoding="utf-8",
+        encoding="utf-8"
     )
 
     if best_train_metrics is None or best_val_metrics is None:
@@ -319,5 +328,5 @@ def train_blackbox(
         "history": history_path,
         "best_epoch": best_epoch,
         "best_train_metrics": best_train_metrics,
-        "best_val_metrics": best_val_metrics,
+        "best_val_metrics": best_val_metrics
     }

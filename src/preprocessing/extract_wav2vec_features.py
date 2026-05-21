@@ -45,7 +45,7 @@ def _feature_attention_mask(
 
 def _masked_mean_std_pooling(
     hidden_states: torch.Tensor,
-    feature_mask: torch.Tensor,
+    feature_mask: torch.Tensor
 ) -> torch.Tensor:
     mask = feature_mask.unsqueeze(-1).to(dtype=hidden_states.dtype)
     denominator = mask.sum(dim=1).clamp(min=1.0)
@@ -76,7 +76,7 @@ def extract_wav2vec_features(
     batch_size: int = 8,
     sampling_rate: int = 16_000,
     device: str | None = None,
-    overwrite: bool = False,
+    overwrite: bool = False
 ) -> dict[str, Path]:
     """Extract mean+std pooled wav2vec2 embeddings for every CREMA-D clip."""
     metadata_csv = Path(metadata_csv)
@@ -86,6 +86,7 @@ def extract_wav2vec_features(
     paths = resolve_feature_paths(output_dir)
     config_path = output_dir / "feature_config.json"
 
+    # prevent repeating extraction if it has already been made
     if paths.feature_path.exists() and paths.metadata_path.exists() and not overwrite:
         return {
             "features": paths.feature_path,
@@ -109,22 +110,32 @@ def extract_wav2vec_features(
             _load_waveform(Path(audio_path), sampling_rate)
             for audio_path in batch["audio_path"].tolist()
         ]
+        # attention mask is used with the audios since padding is applied in order to have valid
+        # torch batches. Attention mask indicates which audio parts are real and which
+        # are padding
         inputs = feature_extractor(
             waveforms,
             sampling_rate=sampling_rate,
             padding=True,
             return_attention_mask=True,
-            return_tensors="pt",
+            return_tensors="pt"
         )
         inputs = {key: value.to(compute_device) for key, value in inputs.items()}
 
         with torch.no_grad():
             outputs = model(**inputs)
             hidden_states = outputs.last_hidden_state
+            # the attention_mask is referred to the original waveform audio input, so its length
+            # is equal to the number of audio samples post-padding. But the feature extractor
+            # produces a sequence of hiddens states way smaller than the number of audio samples.
+            # We have to "translate" the mask of the audio to a mask of the hidden states.
+            # We need this translated mask otherwise during the pooling process we would include
+            # also hidden states obtained from padded audio section which is useless -> we want to
+            # pool only valid audio frames
             feature_mask = _feature_attention_mask(
                 model=model,
                 attention_mask=inputs["attention_mask"],
-                sequence_length=hidden_states.shape[1],
+                sequence_length=hidden_states.shape[1]
             )
             pooled = _masked_mean_std_pooling(hidden_states, feature_mask)
         pooled_batches.append(pooled.cpu().numpy().astype(np.float32))

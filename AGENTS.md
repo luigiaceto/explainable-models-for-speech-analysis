@@ -1,5 +1,5 @@
 # PROJECT IDEA
-The project consist in building an explainable-by-design model for speech analysis. In particular, a CBM for predicting emotion from audio traces. The architecture is the following:
+This project, developed for an Explainable AI course of an MSc in Computer Engineering, consist in building an explainable-by-design model for speech analysis. In particular, a CBM for predicting emotion from audio traces. The architecture is the following:
 - input: audio trace
 - audio encoder (wav2vec2-base)
 - audio embeddings extracted by the audio encoder

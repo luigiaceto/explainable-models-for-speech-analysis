@@ -26,7 +26,7 @@ def compute_classification_metrics(
         target_names=label_names,
         labels=list(range(len(label_names))),
         output_dict=True,
-        zero_division=0,
+        zero_division=0
     )
     matrix = confusion_matrix(y_true, y_pred, labels=list(range(len(label_names))))
     return {
@@ -34,7 +34,7 @@ def compute_classification_metrics(
         "macro_f1": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
         "weighted_f1": float(f1_score(y_true, y_pred, average="weighted", zero_division=0)),
         "classification_report": report,
-        "confusion_matrix": matrix.tolist(),
+        "confusion_matrix": matrix.tolist()
     }
 
 

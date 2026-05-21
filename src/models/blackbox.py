@@ -36,7 +36,7 @@ class BlackBoxEmotionClassifier(nn.Module):
                 [
                     nn.Linear(previous_dim, hidden_dim),
                     activation_layer(),
-                    nn.Dropout(dropout),
+                    nn.Dropout(dropout)
                 ]
             )
             previous_dim = hidden_dim

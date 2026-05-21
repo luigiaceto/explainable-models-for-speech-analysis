@@ -144,7 +144,7 @@ def resolve_feature_paths(feature_dir: str | Path) -> FeaturePaths:
 
 def load_features(
     feature_dir: str | Path,
-    mmap_mode: str | None = None,
+    mmap_mode: str | None = None
 ) -> tuple[np.ndarray, pd.DataFrame]:
     paths = resolve_feature_paths(feature_dir)
     if not paths.feature_path.exists():
@@ -168,7 +168,7 @@ class CremaDFeatureDataset(Dataset):
         self,
         features: np.ndarray,
         metadata: pd.DataFrame,
-        indices: Iterable[int] | None = None,
+        indices: Iterable[int] | None = None
     ) -> None:
         self.features = features
         self.metadata = metadata.reset_index(drop=True)
