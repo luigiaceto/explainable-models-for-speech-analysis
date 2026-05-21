@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torchaudio
+from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 from transformers import AutoFeatureExtractor, AutoModel
 from src.data.crema_d import load_metadata, resolve_feature_paths
@@ -41,6 +42,30 @@ def _load_waveform(
     return waveform.squeeze(0).numpy()
 
 
+class _AudioWaveformDataset(Dataset):
+    """Dataset that loads and normalizes raw waveforms for feature extraction."""
+
+    def __init__(self, audio_paths: list[str], sampling_rate: int) -> None:
+        self.audio_paths = audio_paths
+        self.sampling_rate = sampling_rate
+        self.resamplers: dict[tuple[int, int], torchaudio.transforms.Resample] = {}
+
+    def __len__(self) -> int:
+        return len(self.audio_paths)
+
+    def __getitem__(self, item: int) -> np.ndarray:
+        return _load_waveform(
+            Path(self.audio_paths[item]),
+            self.sampling_rate,
+            self.resamplers
+        )
+
+
+def _collate_waveforms(waveforms: list[np.ndarray]) -> list[np.ndarray]:
+    """Keep variable-length waveforms as a list for Hugging Face padding."""
+    return waveforms
+
+
 def _feature_attention_mask(
     model: torch.nn.Module,
     attention_mask: torch.Tensor,
@@ -72,15 +97,6 @@ def _masked_mean_std_pooling(
     return torch.cat([mean, std], dim=-1)
 
 
-def _masked_mean_pooling(
-    hidden_states: torch.Tensor,
-    feature_mask: torch.Tensor
-) -> torch.Tensor:
-    mask = feature_mask.unsqueeze(-1).to(dtype=hidden_states.dtype)
-    denominator = mask.sum(dim=1).clamp(min=1.0)
-    return (hidden_states * mask).sum(dim=1) / denominator
-
-
 def _pool_hidden_states(
     hidden_states: torch.Tensor,
     feature_mask: torch.Tensor,
@@ -89,8 +105,6 @@ def _pool_hidden_states(
     normalized_pooling = pooling.lower()
     if normalized_pooling == "mean_std":
         return _masked_mean_std_pooling(hidden_states, feature_mask)
-    if normalized_pooling == "mean":
-        return _masked_mean_pooling(hidden_states, feature_mask)
     raise ValueError(f"Unsupported pooling: {pooling}")
 
 
@@ -135,12 +149,17 @@ def extract_audio_features(
     batch_size: int = 8,
     sampling_rate: int = 16_000,
     device: str | None = None,
-    overwrite: bool = False
+    overwrite: bool = False,
+    num_workers: int = 0
 ) -> dict[str, Path]:
     """Extract pooled embeddings from a frozen audio encoder."""
     metadata_csv = Path(metadata_csv)
     audio_dir = Path(audio_dir)
     output_dir = Path(output_dir)
+
+    if num_workers < 0:
+        raise ValueError(f"num_workers must be non-negative, got {num_workers}")
+
     output_dir.mkdir(parents=True, exist_ok=True)
     paths = resolve_feature_paths(output_dir)
     config_path = output_dir / "feature_config.json"
@@ -186,15 +205,21 @@ def extract_audio_features(
     for parameter in model.parameters():
         parameter.requires_grad = False
 
+    audio_dataset = _AudioWaveformDataset(
+        audio_paths=metadata["audio_path"].tolist(),
+        sampling_rate=sampling_rate
+    )
+    audio_loader = DataLoader(
+        audio_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        collate_fn=_collate_waveforms
+    )
+
     pooled_batches = []
-    resamplers: dict[tuple[int, int], torchaudio.transforms.Resample] = {}
     model_slug = model_name_to_slug(model_name)
-    for start in tqdm(range(0, len(metadata), batch_size), desc=f"Extracting {model_slug} features"):
-        batch = metadata.iloc[start : start + batch_size]
-        waveforms = [
-            _load_waveform(Path(audio_path), sampling_rate, resamplers)
-            for audio_path in batch["audio_path"].tolist()
-        ]
+    for waveforms in tqdm(audio_loader, desc=f"Extracting {model_slug} features"):
         # attention mask is used with the audios since padding is applied in order to have valid
         # torch batches. Attention mask indicates which audio parts are real and which
         # are padding
@@ -249,6 +274,7 @@ def extract_audio_features(
         "encoder_embedding_dim": encoder_embedding_dim,
         "feature_dim": int(features.shape[1]),
         "feature_shape": list(features.shape),
+        "num_workers": num_workers,
         "source_metadata": str(metadata_csv),
     }
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
