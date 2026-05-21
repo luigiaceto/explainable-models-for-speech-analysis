@@ -170,7 +170,12 @@ class CremaDFeatureDataset(Dataset):
         metadata: pd.DataFrame,
         indices: Iterable[int] | None = None
     ) -> None:
-        self.features = features
+        # load all features and labels once
+        self.features = torch.as_tensor(features, dtype=torch.float32)
+        self.labels = torch.as_tensor(
+            metadata["label"].to_numpy(dtype=np.int64),
+            dtype=torch.long
+        )
         self.metadata = metadata.reset_index(drop=True)
         self.indices = (
             np.arange(len(self.metadata), dtype=np.int64)
@@ -183,6 +188,6 @@ class CremaDFeatureDataset(Dataset):
 
     def __getitem__(self, item: int) -> tuple[torch.Tensor, torch.Tensor]:
         row_index = int(self.indices[item])
-        feature = torch.as_tensor(self.features[row_index], dtype=torch.float32)
-        label = torch.tensor(int(self.metadata.iloc[row_index]["label"]), dtype=torch.long)
+        feature = self.features[row_index]
+        label = self.labels[row_index]
         return feature, label
