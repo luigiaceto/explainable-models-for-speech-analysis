@@ -109,6 +109,7 @@ def plot_blackbox_embedding_pca(
 
     palette = dict(zip(EMOTION_NAMES, sns.color_palette("tab10", len(EMOTION_NAMES))))
     fig, axes = plt.subplots(1, 2, figsize=figsize, constrained_layout=True)
+    split_label = "all splits" if split == "all" else f"{split} split"
     plot_specs = [
         (feature_projection, feature_pca, "Frozen audio encoder mean+std features"),
         (mlp_projection, mlp_pca, "Black-box penultimate representations"),
@@ -132,7 +133,8 @@ def plot_blackbox_embedding_pca(
         # captured by that direction
         explained = pca.explained_variance_ratio_
         ax.set_title(
-            f"{title}\nexplained variance: {explained[0]:.1%} + {explained[1]:.1%}"
+            f"{title}\n{split_label} | explained variance: "
+            f"{explained[0]:.1%} + {explained[1]:.1%}"
         )
         ax.set_xlabel("PCA 1")
         ax.set_ylabel("PCA 2")
