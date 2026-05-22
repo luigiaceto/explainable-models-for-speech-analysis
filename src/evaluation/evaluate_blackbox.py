@@ -4,8 +4,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader
-from src.data.crema_d import CremaDFeatureDataset, EMOTION_NAMES, load_features
+from src.data.crema_d import EMOTION_NAMES, load_features, make_crema_d_feature_loader
 from src.evaluation.metrics import (
     compute_classification_metrics,
     save_classification_report_csv,
@@ -86,15 +85,34 @@ def evaluate_blackbox(
     if splits_csv is None:
         splits_csv = Path(checkpoint_path).parent / "splits.csv"
 
+    # performing checks in order to prevent:
+    # 1. using the wrong splits.csv
+    # 2. using unaligned features and metadata
+    # 3. evaluating an empty or non-existent split
     split_metadata = pd.read_csv(splits_csv)
     if len(split_metadata) != len(feature_metadata):
         raise ValueError("Split metadata and feature metadata have different lengths")
     if feature_metadata["file_name"].tolist() != split_metadata["file_name"].tolist():
+        raise ValueError(
+            f"Split metadata in {splits_csv} does not match feature metadata in {feature_dir}"
+        )
+    if "split" not in split_metadata.columns:
+        raise ValueError(f"Split metadata in {splits_csv} is missing the 'split' column")
+    if split not in set(split_metadata["split"]):
         raise ValueError(f"Split '{split}' not found in {splits_csv}")
 
     indices = split_metadata.index[split_metadata["split"] == split].tolist()
-    dataset = CremaDFeatureDataset(features, split_metadata, indices)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    if not indices:
+        raise ValueError(f"Split '{split}' in {splits_csv} does not contain any samples")
+
+    loader = make_crema_d_feature_loader(
+        features=features,
+        metadata=split_metadata,
+        split_name=split,
+        batch_size=batch_size,
+        num_workers=0,
+        shuffle=False
+    )
 
     y_true = []
     y_pred = []

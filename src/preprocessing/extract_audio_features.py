@@ -78,6 +78,7 @@ def _feature_attention_mask(
     if hasattr(model, "_get_feat_extract_output_lengths"):
         output_lengths = model._get_feat_extract_output_lengths(input_lengths)
     else:
+        # estimate
         scale = sequence_length / attention_mask.shape[1]
         output_lengths = torch.ceil(input_lengths.float() * scale).long()
 
@@ -156,9 +157,6 @@ def extract_audio_features(
     metadata_csv = Path(metadata_csv)
     audio_dir = Path(audio_dir)
     output_dir = Path(output_dir)
-
-    if num_workers < 0:
-        raise ValueError(f"num_workers must be non-negative, got {num_workers}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     paths = resolve_feature_paths(output_dir)

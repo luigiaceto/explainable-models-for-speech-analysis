@@ -8,7 +8,9 @@ from src.data.crema_d import parse_crema_d_filename, save_metadata
 
 
 # The manteiner of this HF dataset put all the crema-d dataset in the
-# "train" split
+# "train" split. We download the entire dataset. Then we will perform
+# the embedding extraction using the audio encoder: the splits will be
+# performed on the embedding dataset.
 DEFAULT_DATASET_NAME = "cfahlgren1/crema-d"
 
 

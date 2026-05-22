@@ -6,12 +6,12 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from src.data.crema_d import CremaDFeatureDataset, EMOTION_NAMES, load_features
+from src.data.crema_d import EMOTION_NAMES, load_features, make_crema_d_feature_loader
+from src.data.split import SAMPLE_STRATIFIED_SPLIT, create_splits
 from src.evaluation.metrics import compute_summary_classification_metrics
 from src.models.blackbox import BlackBoxEmotionClassifier
 from src.utils.utils import device_or_default, set_seed
@@ -34,6 +34,8 @@ class TrainingConfig:
     train_size: float = 0.70
     val_size: float = 0.15
     test_size: float = 0.15
+    split_strategy: str = SAMPLE_STRATIFIED_SPLIT
+    speaker_column: str = "actor_id"
     random_state: int = 42
     num_workers: int = 0
     use_class_weights: bool = True
@@ -41,71 +43,6 @@ class TrainingConfig:
     monitor_metric: str = "macro_f1" # metric used to check if the model is improving on the validation set
     device: str | None = None
     verbose: bool = True
-
-
-def create_stratified_splits(
-    metadata: pd.DataFrame,
-    train_size: float,
-    val_size: float,
-    test_size: float,
-    random_state: int
-) -> pd.DataFrame:
-    """Create stratified train/validation/test splits by emotion label."""
-    metadata = metadata.reset_index(drop=True)
-    total = train_size + val_size + test_size
-    if not np.isclose(total, 1.0):
-        raise ValueError(f"Split sizes must sum to 1.0, got {total:.4f}")
-
-    indices = np.arange(len(metadata))
-    labels = metadata["label"].to_numpy()
-
-    # split from [dataset=train+val+test] to [train] and [val+test]
-    train_indices, temp_indices = train_test_split(
-        indices,
-        train_size=train_size,
-        random_state=random_state,
-        stratify=labels
-    )
-    # split from [val+test] to [val] and [test]
-    relative_val_size = val_size / (val_size + test_size)
-    val_indices, test_indices = train_test_split(
-        temp_indices,
-        train_size=relative_val_size,
-        random_state=random_state,
-        stratify=labels[temp_indices]
-    )
-
-    splits = metadata.copy()
-    splits["split"] = ""
-    splits.loc[train_indices, "split"] = "train"
-    splits.loc[val_indices, "split"] = "val"
-    splits.loc[test_indices, "split"] = "test"
-    return splits
-
-
-def _make_loader(
-    features: np.ndarray,
-    metadata: pd.DataFrame,
-    split_name: str,
-    batch_size: int,
-    num_workers: int,
-    shuffle: bool
-) -> DataLoader:
-    indices = metadata.index[metadata["split"] == split_name].tolist()
-
-    dataset = CremaDFeatureDataset(
-        features=features,
-        metadata=metadata,
-        indices=indices
-    )
-
-    return DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
-        pin_memory=torch.cuda.is_available()
-    )
 
 
 def _classification_loss(
@@ -185,18 +122,20 @@ def train_blackbox(
             f"Expected feature dim {config.input_dim}, got {features.shape[1]}"
         )
 
-    metadata = create_stratified_splits(
+    metadata = create_splits(
         metadata=metadata,
         train_size=config.train_size,
         val_size=config.val_size,
         test_size=config.test_size,
-        random_state=config.random_state
+        random_state=config.random_state,
+        split_strategy=config.split_strategy,
+        speaker_column=config.speaker_column
     )
     splits_path = output_dir / "splits.csv"
     metadata.to_csv(splits_path, index=False)
 
     device = device_or_default(config.device)
-    train_loader = _make_loader(
+    train_loader = make_crema_d_feature_loader(
         features,
         metadata,
         batch_size=config.batch_size,
@@ -204,7 +143,7 @@ def train_blackbox(
         split_name="train",
         shuffle=True
     )
-    val_loader = _make_loader(
+    val_loader = make_crema_d_feature_loader(
         features,
         metadata,
         batch_size=config.batch_size,

@@ -22,7 +22,7 @@ class BlackBoxEmotionClassifier(nn.Module):
         hidden_dims: tuple[int, int] = (256, 128),
         num_classes: int = 6,
         dropout: float = 0.2,
-        activation: str = "gelu",
+        activation: str = "gelu"
     ) -> None:
         super().__init__()
         activation_layer = _activation_layer(activation)

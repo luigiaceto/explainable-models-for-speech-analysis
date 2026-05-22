@@ -31,7 +31,8 @@ The current codebase contains:
 - frozen audio encoder feature extraction with masked mean + standard-deviation pooling;
 - a PyTorch dataset for precomputed audio embeddings;
 - an MLP black-box emotion classifier;
-- a training loop with stratified train/validation/test split, weighted cross-entropy,
+- a training loop with configurable train/validation/test split strategy
+  (`sample_stratified` or `speaker_independent`), weighted cross-entropy,
   AdamW, validation-based checkpointing, and early stopping;
 - a separate evaluation pipeline for the saved black-box checkpoint;
 - metric reporting utilities for accuracy, macro F1, weighted F1, per-class

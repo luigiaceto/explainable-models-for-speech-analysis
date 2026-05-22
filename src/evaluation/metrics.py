@@ -10,14 +10,14 @@ from sklearn.metrics import (
     accuracy_score,
     classification_report,
     confusion_matrix,
-    f1_score,
+    f1_score
 )
 
 
 def compute_classification_metrics(
     y_true: np.ndarray,
     y_pred: np.ndarray,
-    label_names: list[str],
+    label_names: list[str]
 ) -> dict[str, Any]:
     """Compute aggregate and per-class classification metrics."""
     report = classification_report(
@@ -40,7 +40,7 @@ def compute_classification_metrics(
 
 def compute_summary_classification_metrics(
     y_true: np.ndarray,
-    y_pred: np.ndarray,
+    y_pred: np.ndarray
 ) -> dict[str, float]:
     """Compute lightweight metrics suitable for per-epoch training logs."""
     return {
@@ -83,7 +83,7 @@ def save_confusion_matrix_plot(
         cmap="Blues",
         xticklabels=label_names,
         yticklabels=label_names,
-        ax=ax,
+        ax=ax
     )
     ax.set_xlabel("Predicted emotion")
     ax.set_ylabel("True emotion")

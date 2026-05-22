@@ -5,7 +5,7 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 
 EMOTION_CODE_TO_NAME = {
@@ -14,20 +14,20 @@ EMOTION_CODE_TO_NAME = {
     "FEA": "fear",
     "HAP": "happy",
     "NEU": "neutral",
-    "SAD": "sad",
+    "SAD": "sad"
 }
 
 EMOTION_NAMES = ["anger", "disgust", "fear", "happy", "neutral", "sad"]
-EMOTION_NAME_TO_LABEL = {name: index for index, name in enumerate(EMOTION_NAMES)}
-EMOTION_CODE_TO_LABEL = {
-    code: EMOTION_NAME_TO_LABEL[name] for code, name in EMOTION_CODE_TO_NAME.items()
-}
+
+EMOTION_NAME_TO_LABEL = {
+    name: index for index, name in enumerate(EMOTION_NAMES)
+} # { "anger": 0, "disgust": 1, ... }
 
 INTENSITY_CODE_TO_NAME = {
     "LO": "low",
     "MD": "medium",
     "HI": "high",
-    "XX": "unspecified",
+    "XX": "unspecified"
 }
 
 SENTENCE_CODE_TO_TEXT = {
@@ -67,7 +67,7 @@ def parse_crema_d_filename(file_name: str) -> dict[str, object]:
         "emotion": emotion,
         "label": EMOTION_NAME_TO_LABEL[emotion],
         "intensity_code": intensity_code,
-        "intensity": INTENSITY_CODE_TO_NAME.get(intensity_code, "unknown"),
+        "intensity": INTENSITY_CODE_TO_NAME.get(intensity_code, "unknown")
     }
 
 
@@ -138,7 +138,7 @@ def resolve_feature_paths(feature_dir: str | Path) -> FeaturePaths:
     feature_dir = Path(feature_dir)
     return FeaturePaths(
         feature_path=feature_dir / "features.npy",
-        metadata_path=feature_dir / "metadata.csv",
+        metadata_path=feature_dir / "metadata.csv"
     )
 
 
@@ -170,7 +170,7 @@ class CremaDFeatureDataset(Dataset):
         metadata: pd.DataFrame,
         indices: Iterable[int] | None = None
     ) -> None:
-        # load all features and labels once
+        # load all features and labels at once
         self.features = torch.as_tensor(features, dtype=torch.float32)
         self.labels = torch.as_tensor(
             metadata["label"].to_numpy(dtype=np.int64),
@@ -191,3 +191,27 @@ class CremaDFeatureDataset(Dataset):
         feature = self.features[row_index]
         label = self.labels[row_index]
         return feature, label
+
+
+def make_crema_d_feature_loader(
+    features: np.ndarray,
+    metadata: pd.DataFrame,
+    split_name: str,
+    batch_size: int,
+    num_workers: int,
+    shuffle: bool
+) -> DataLoader:
+    """Create a DataLoader for one split of precomputed CREMA-D features."""
+    indices = metadata.index[metadata["split"] == split_name].tolist()
+    dataset = CremaDFeatureDataset(
+        features=features,
+        metadata=metadata,
+        indices=indices
+    )
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        pin_memory=torch.cuda.is_available()
+    )
