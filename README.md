@@ -33,7 +33,8 @@ The current codebase contains:
 - an MLP black-box emotion classifier;
 - a training loop with configurable train/validation/test split strategy
   (`sample_stratified` or `speaker_independent`), weighted cross-entropy,
-  AdamW, validation-based checkpointing, and early stopping;
+  AdamW, optional plateau-based learning-rate scheduling, validation-based
+  checkpointing, and early stopping;
 - a separate evaluation pipeline for the saved black-box checkpoint;
 - metric reporting utilities for accuracy, macro F1, weighted F1, per-class
   precision/recall/F1, predictions, and confusion matrix.

@@ -41,6 +41,11 @@ class TrainingConfig:
     use_class_weights: bool = True
     early_stopping_patience: int = 10 # if the model doesn't improve after N epochs we stop the training
     monitor_metric: str = "macro_f1" # metric used to check if the model is improving on the validation set
+    lr_scheduler: str | None = "reduce_on_plateau"
+    scheduler_monitor_metric: str = "macro_f1"
+    scheduler_factor: float = 0.5
+    scheduler_patience: int = 3
+    scheduler_min_lr: float = 1e-6
     device: str | None = None
     verbose: bool = True
 
@@ -62,6 +67,10 @@ def _classification_loss(
     return nn.CrossEntropyLoss(
         weight=torch.as_tensor(weights, dtype=torch.float32, device=device)
     )
+
+
+def _current_learning_rate(optimizer: torch.optim.Optimizer) -> float:
+    return float(optimizer.param_groups[0]["lr"])
 
 
 def _run_epoch(
@@ -166,6 +175,18 @@ def train_blackbox(
         lr=config.learning_rate,
         weight_decay=config.weight_decay
     )
+    scheduler = None
+    if config.lr_scheduler is not None:
+        if config.lr_scheduler != "reduce_on_plateau":
+            raise ValueError("Only 'reduce_on_plateau' is supported as lr_scheduler")
+        scheduler_mode = "min" if config.scheduler_monitor_metric == "loss" else "max"
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode=scheduler_mode,
+            factor=config.scheduler_factor,
+            patience=config.scheduler_patience,
+            min_lr=config.scheduler_min_lr
+        )
 
     best_score = -np.inf
     best_epoch = 0
@@ -176,9 +197,21 @@ def train_blackbox(
     checkpoint_path = output_dir / "best_model.pt"
 
     for epoch in tqdm(range(1, config.epochs + 1), desc="Training black-box model"):
+        epoch_learning_rate = _current_learning_rate(optimizer)
         train_metrics = _run_epoch(model, train_loader, criterion, device, optimizer)
         val_metrics = _run_epoch(model, val_loader, criterion, device)
+        if config.scheduler_monitor_metric not in val_metrics:
+            raise ValueError(
+                f"Unsupported scheduler_monitor_metric '{config.scheduler_monitor_metric}'. "
+                f"Available metrics are: {sorted(val_metrics)}"
+            )
+        if config.monitor_metric not in val_metrics:
+            raise ValueError(
+                f"Unsupported monitor_metric '{config.monitor_metric}'. "
+                f"Available metrics are: {sorted(val_metrics)}"
+            )
         score = float(val_metrics[config.monitor_metric])
+        scheduler_score = float(val_metrics[config.scheduler_monitor_metric])
 
         history_row = {
             "epoch": epoch,
@@ -188,7 +221,8 @@ def train_blackbox(
             "val_loss": val_metrics["loss"],
             "val_accuracy": val_metrics["accuracy"],
             "val_macro_f1": val_metrics["macro_f1"],
-            "val_weighted_f1": val_metrics["weighted_f1"]
+            "val_weighted_f1": val_metrics["weighted_f1"],
+            "learning_rate": epoch_learning_rate
         }
         history.append(history_row)
 
@@ -225,6 +259,9 @@ def train_blackbox(
         else:
             epochs_without_improvement += 1
 
+        if scheduler is not None:
+            scheduler.step(scheduler_score)
+
         if config.verbose:
             status = "best" if improved else f"patience {epochs_without_improvement}/{config.early_stopping_patience}"
             tqdm.write(
@@ -237,6 +274,7 @@ def train_blackbox(
                 f"acc {val_metrics['accuracy']:.4f}, "
                 f"macro F1 {val_metrics['macro_f1']:.4f}, "
                 f"weighted F1 {val_metrics['weighted_f1']:.4f} | "
+                f"lr {epoch_learning_rate:.2e} | "
                 f"{status}"
             )
 
