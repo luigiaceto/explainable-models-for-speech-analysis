@@ -69,7 +69,7 @@ def plot_blackbox_embedding_pca(
     second panel shows the trained black-box representation before the final
     classification layer.
     """
-    features, feature_metadata = load_features(feature_dir)
+    features, feature_metadata = load_features(feature_dir, mmap_mode="r")
     split_metadata = pd.read_csv(splits_csv)
 
     if feature_metadata["file_name"].tolist() != split_metadata["file_name"].tolist():
