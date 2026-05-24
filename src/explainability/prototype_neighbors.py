@@ -70,7 +70,7 @@ def explain_sample_by_filename(
             "prototype_position": prototype_index,
             "prototype_label": prototype_label,
             "prototype_emotion": EMOTION_NAMES[prototype_label],
-            "similarity": float(similarities[prototype_index]),
+            "similarity": float(similarities[prototype_index])
         }
 
         if prototype_metadata is not None:
@@ -100,7 +100,7 @@ def explain_sample_by_filename(
             emotion: float(scores[index])
             for index, emotion in enumerate(EMOTION_NAMES)
         },
-        "top_prototypes": top_prototypes,
+        "top_prototypes": top_prototypes
     }
 
 

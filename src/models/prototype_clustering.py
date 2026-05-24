@@ -28,35 +28,14 @@ class PrototypeClusteringClassifier:
 
     def __init__(
         self,
-        centroids: np.ndarray,
-        centroid_labels: np.ndarray,
         metadata: PrototypeClusteringMetadata,
-        prototypes: np.ndarray | None = None,
-        prototype_labels: np.ndarray | None = None
+        prototypes: np.ndarray,
+        prototype_labels: np.ndarray
     ) -> None:
-        self.centroids = l2_normalize_rows(centroids)
-        self.centroid_labels = np.asarray(centroid_labels, dtype=np.int64)
-        self.prototypes = (
-            self.centroids
-            if prototypes is None
-            else l2_normalize_rows(prototypes)
-        )
-        self.prototype_labels = (
-            self.centroid_labels
-            if prototype_labels is None
-            else np.asarray(prototype_labels, dtype=np.int64)
-        )
+        self.prototypes = l2_normalize_rows(prototypes)
+        self.prototype_labels = np.asarray(prototype_labels, dtype=np.int64)
         self.metadata = metadata
 
-        if self.centroids.ndim != 2:
-            raise ValueError("centroids must be a 2D array")
-        if len(self.centroids) != len(self.centroid_labels):
-            raise ValueError("centroids and centroid_labels have different lengths")
-        if self.centroids.shape[1] != self.metadata.embedding_dim:
-            raise ValueError(
-                f"Expected centroid dim {self.metadata.embedding_dim}, "
-                f"got {self.centroids.shape[1]}"
-            )
         if self.prototypes.ndim != 2:
             raise ValueError("prototypes must be a 2D array")
         if len(self.prototypes) != len(self.prototype_labels):
@@ -106,20 +85,15 @@ class PrototypeClusteringClassifier:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        centroids_path = output_dir / "centroids.npy"
-        labels_path = output_dir / "centroid_labels.npy"
         prototypes_path = output_dir / "prototypes.npy"
         prototype_labels_path = output_dir / "prototype_labels.npy"
         config_path = output_dir / "prototype_config.json"
 
-        np.save(centroids_path, self.centroids.astype(np.float32))
-        np.save(labels_path, self.centroid_labels.astype(np.int64))
         np.save(prototypes_path, self.prototypes.astype(np.float32))
         np.save(prototype_labels_path, self.prototype_labels.astype(np.int64))
 
         config = {
             "metadata": asdict(self.metadata),
-            "num_centroids": int(len(self.centroids)),
             "num_prototypes": int(len(self.prototypes)),
             "classification_vectors": "prototypes.npy",
         }
@@ -128,8 +102,6 @@ class PrototypeClusteringClassifier:
         config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
 
         return {
-            "centroids": centroids_path,
-            "centroid_labels": labels_path,
             "prototypes": prototypes_path,
             "prototype_labels": prototype_labels_path,
             "config": config_path,
@@ -142,17 +114,9 @@ def load_prototype_clustering_classifier(
     model_dir = Path(model_dir)
     config = json.loads((model_dir / "prototype_config.json").read_text(encoding="utf-8"))
     metadata = PrototypeClusteringMetadata(**config["metadata"])
-    prototypes_path = model_dir / "prototypes.npy"
-    prototype_labels_path = model_dir / "prototype_labels.npy"
     classifier = PrototypeClusteringClassifier(
-        centroids=np.load(model_dir / "centroids.npy"),
-        centroid_labels=np.load(model_dir / "centroid_labels.npy"),
         metadata=metadata,
-        prototypes=np.load(prototypes_path) if prototypes_path.exists() else None,
-        prototype_labels=(
-            np.load(prototype_labels_path)
-            if prototype_labels_path.exists()
-            else None
-        )
+        prototypes=np.load(model_dir / "prototypes.npy"),
+        prototype_labels=np.load(model_dir / "prototype_labels.npy")
     )
     return classifier, config

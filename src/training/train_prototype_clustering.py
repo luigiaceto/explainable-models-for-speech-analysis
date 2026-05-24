@@ -68,9 +68,7 @@ def _build_centroids(
     )
 
 
-def _build_centroid_classifier(
-    centroids: np.ndarray,
-    centroid_labels: np.ndarray,
+def _build_prototype_classifier(
     prototypes: np.ndarray,
     prototype_labels: np.ndarray,
     top_n: int,
@@ -82,8 +80,6 @@ def _build_centroid_classifier(
         embedding_dim=config.embedding_dim,
     )
     return PrototypeClusteringClassifier(
-        centroids=centroids,
-        centroid_labels=centroid_labels,
         metadata=metadata,
         prototypes=prototypes,
         prototype_labels=prototype_labels
@@ -155,7 +151,7 @@ def _map_centroids_to_real_prototypes(
                     "dataset_metadata_index": int(sample_row["metadata_index"]),
                     "centroid_similarity": float(
                         similarities[centroid_local_position, sample_local_position]
-                    ),
+                    )
                 }
             )
 
@@ -208,6 +204,8 @@ def train_prototype_clustering(
     best_row: dict[str, Any] | None = None
     best_classifier: PrototypeClusteringClassifier | None = None
     best_prototype_metadata: pd.DataFrame | None = None
+    best_centroids: np.ndarray | None = None
+    best_centroid_labels: np.ndarray | None = None
 
     for k in config.cluster_counts:
         if k <= 0:
@@ -233,9 +231,7 @@ def train_prototype_clustering(
             if top_n > k * config.num_classes:
                 continue
 
-            classifier = _build_centroid_classifier(
-                centroids=centroids,
-                centroid_labels=centroid_labels,
+            classifier = _build_prototype_classifier(
                 prototypes=prototypes,
                 prototype_labels=prototype_labels,
                 top_n=top_n,
@@ -271,6 +267,8 @@ def train_prototype_clustering(
                 best_row = row
                 best_classifier = classifier
                 best_prototype_metadata = prototype_metadata
+                best_centroids = centroids
+                best_centroid_labels = centroid_labels
 
             if config.verbose:
                 print(
@@ -280,18 +278,28 @@ def train_prototype_clustering(
                     f"weighted F1 {metrics['weighted_f1']:.4f}"
                 )
 
-    if best_row is None or best_classifier is None or best_prototype_metadata is None:
+    if (
+        best_row is None
+        or best_classifier is None
+        or best_prototype_metadata is None
+        or best_centroids is None
+        or best_centroid_labels is None
+    ):
         raise RuntimeError("Grid search finished without a valid configuration")
 
     search_results_path = output_dir / "grid_search_results.csv"
     training_config_path = output_dir / "training_config.json"
     prototype_metadata_path = output_dir / "prototype_metadata.csv"
+    centroids_path = output_dir / "centroids.npy"
+    centroid_labels_path = output_dir / "centroid_labels.npy"
     pd.DataFrame(results).sort_values(
         by=[f"val_{config.monitor_metric}", "val_accuracy"],
         ascending=False
     ).to_csv(search_results_path, index=False)
     training_config_path.write_text(json.dumps(asdict(config), indent=2), encoding="utf-8")
     best_prototype_metadata.to_csv(prototype_metadata_path, index=False)
+    np.save(centroids_path, best_centroids.astype(np.float32))
+    np.save(centroid_labels_path, best_centroid_labels.astype(np.int64))
 
     best_classifier.save(
         output_dir,
@@ -300,6 +308,8 @@ def train_prototype_clustering(
             "embedding_dir": str(embedding_dir),
             "grid_search_results": str(search_results_path),
             "prototype_metadata": str(prototype_metadata_path),
+            "cluster_centroids": str(centroids_path),
+            "cluster_centroid_labels": str(centroid_labels_path),
             "prototype_source": "nearest_train_sample_to_class_kmeans_centroid",
         }
     )
@@ -319,5 +329,7 @@ def train_prototype_clustering(
         "grid_search_results": search_results_path,
         "training_config": training_config_path,
         "prototype_metadata": prototype_metadata_path,
+        "centroids": centroids_path,
+        "centroid_labels": centroid_labels_path,
         "best_config": best_row,
     }

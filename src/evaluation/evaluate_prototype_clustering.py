@@ -2,22 +2,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import numpy as np
-import pandas as pd
 from src.data.crema_d import EMOTION_NAMES, load_features
 from src.evaluation.metrics import (
     compute_classification_metrics,
-    save_classification_report_csv,
-    save_confusion_matrix_plot,
-    save_metrics,
+    save_classification_evaluation_outputs,
 )
 from src.models.prototype_clustering import load_prototype_clustering_classifier
-
-
-def print_prototype_clustering_metrics(metrics: dict[str, Any]) -> None:
-    """Print prototype clustering metrics in a compact format."""
-    print(f"Accuracy:    {metrics['accuracy']:.4f}")
-    print(f"Macro F1:    {metrics['macro_f1']:.4f}")
-    print(f"Weighted F1: {metrics['weighted_f1']:.4f}")
 
 
 def evaluate_prototype_clustering(
@@ -46,22 +36,16 @@ def evaluate_prototype_clustering(
     metrics = compute_classification_metrics(y_true, y_pred, EMOTION_NAMES)
 
     if output_dir is not None:
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        save_metrics(metrics, output_dir / f"{split}_metrics.json")
-        save_classification_report_csv(metrics, output_dir / f"{split}_classification_report.csv")
-        save_confusion_matrix_plot(
+        save_classification_evaluation_outputs(
             metrics,
-            EMOTION_NAMES,
-            output_dir / f"{split}_confusion_matrix.png",
-            title=f"Prototype clustering {split} confusion matrix"
+            split_metadata,
+            y_pred,
+            scores,
+            label_names=EMOTION_NAMES,
+            output_dir=output_dir,
+            split=split,
+            model_name="Prototype clustering",
+            score_prefix="score"
         )
-
-        predictions = split_metadata[["file_name", "emotion", "label"]].copy()
-        predictions["predicted_label"] = y_pred
-        predictions["predicted_emotion"] = [EMOTION_NAMES[index] for index in y_pred]
-        for index, emotion in enumerate(EMOTION_NAMES):
-            predictions[f"score_{emotion}"] = scores[:, index]
-        predictions.to_csv(output_dir / f"{split}_predictions.csv", index=False)
 
     return metrics
