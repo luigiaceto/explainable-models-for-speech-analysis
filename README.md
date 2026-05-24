@@ -44,10 +44,12 @@ The current codebase contains:
 - extraction of 128-dimensional black-box penultimate embeddings with L2
   normalization;
 - a prototype clustering classifier that fits K-means separately within each
-  emotion class on the training split, selects K and top-N on the validation
+  emotion class on the training split, maps each centroid to the nearest real
+  training sample of the same emotion, selects K and top-N on the validation
   split, and evaluates once on the test split;
-- a per-sample prototype score utility that reports class scores, true label,
-  and predicted label for one CREMA-D file name.
+- a per-sample prototype inspection utility that reports class scores, true
+  label, predicted label, and the top-N real training prototypes used for one
+  CREMA-D file name.
 
 The CBM architecture, concept extraction, concept losses, and full
 explainability metrics are not implemented yet.
@@ -70,8 +72,9 @@ explainability metrics are not implemented yet.
 - `src/training/`: training code. Currently it contains the black-box training
   loop, split creation logic, and prototype clustering grid search.
 - `src/evaluation/`: evaluation and metric reporting code for trained models.
-- `src/explanability/`: utilities for prototype-score based inspection.
-- `src/utils/`: shared helper functions such as seed setup and device selection.
+- `src/explainability/`: utilities for prototype-score based inspection.
+- `src/utils/`: shared helper functions such as seed setup, device selection,
+  and visualization utilities.
 
 ## Environment
 

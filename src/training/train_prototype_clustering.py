@@ -71,6 +71,8 @@ def _build_centroids(
 def _build_centroid_classifier(
     centroids: np.ndarray,
     centroid_labels: np.ndarray,
+    prototypes: np.ndarray,
+    prototype_labels: np.ndarray,
     top_n: int,
     config: PrototypeClusteringTrainingConfig
 ) -> PrototypeClusteringClassifier:
@@ -82,8 +84,93 @@ def _build_centroid_classifier(
     return PrototypeClusteringClassifier(
         centroids=centroids,
         centroid_labels=centroid_labels,
-        metadata=metadata
+        metadata=metadata,
+        prototypes=prototypes,
+        prototype_labels=prototype_labels
     )
+
+
+def _map_centroids_to_real_prototypes(
+    centroids: np.ndarray,
+    centroid_labels: np.ndarray,
+    train_embeddings: np.ndarray,
+    train_labels: np.ndarray,
+    train_metadata: pd.DataFrame,
+    config: PrototypeClusteringTrainingConfig
+) -> tuple[np.ndarray, np.ndarray, pd.DataFrame]:
+    """Map each class-specific centroid to a real training sample of the same class."""
+    normalized_centroids = l2_normalize_rows(centroids)
+    normalized_train_embeddings = l2_normalize_rows(train_embeddings)
+    prototypes = np.zeros_like(normalized_centroids, dtype=np.float32)
+    prototype_labels = np.zeros_like(centroid_labels, dtype=np.int64)
+    records = []
+
+    for label in range(config.num_classes):
+        centroid_positions = np.where(centroid_labels == label)[0]
+        class_positions = np.where(train_labels == label)[0]
+        if len(class_positions) < len(centroid_positions):
+            raise ValueError(
+                f"Cannot map {len(centroid_positions)} centroids for class {label}: "
+                f"only {len(class_positions)} training samples available"
+            )
+
+        class_embeddings = normalized_train_embeddings[class_positions]
+        similarities = normalized_centroids[centroid_positions] @ class_embeddings.T
+        used_local_positions: set[int] = set()
+
+        # Assign the most confident centroid-sample pairs first, while keeping
+        # prototypes unique within each emotion class.
+        pair_order = np.dstack(
+            np.unravel_index(
+                np.argsort(-similarities, axis=None),
+                similarities.shape
+            )
+        )[0]
+        assigned_centroids: set[int] = set()
+
+        for centroid_local_position, sample_local_position in pair_order:
+            centroid_local_position = int(centroid_local_position)
+            sample_local_position = int(sample_local_position)
+            if centroid_local_position in assigned_centroids:
+                continue
+            if sample_local_position in used_local_positions:
+                continue
+
+            global_centroid_position = int(centroid_positions[centroid_local_position])
+            global_sample_position = int(class_positions[sample_local_position])
+            sample_row = train_metadata.iloc[global_sample_position]
+
+            prototypes[global_centroid_position] = normalized_train_embeddings[global_sample_position]
+            prototype_labels[global_centroid_position] = label
+            used_local_positions.add(sample_local_position)
+            assigned_centroids.add(centroid_local_position)
+            records.append(
+                {
+                    "prototype_position": global_centroid_position,
+                    "centroid_label": label,
+                    "prototype_label": label,
+                    "file_name": sample_row["file_name"],
+                    "emotion": sample_row["emotion"],
+                    "train_embedding_position": global_sample_position,
+                    "dataset_metadata_index": int(sample_row["metadata_index"]),
+                    "centroid_similarity": float(
+                        similarities[centroid_local_position, sample_local_position]
+                    ),
+                }
+            )
+
+            if len(assigned_centroids) == len(centroid_positions):
+                break
+
+        if len(assigned_centroids) != len(centroid_positions):
+            raise RuntimeError(f"Could not assign all prototypes for class {label}")
+
+    prototype_metadata = (
+        pd.DataFrame(records)
+        .sort_values("prototype_position")
+        .reset_index(drop=True)
+    )
+    return prototypes, prototype_labels, prototype_metadata
 
 
 def train_prototype_clustering(
@@ -110,6 +197,9 @@ def train_prototype_clustering(
 
     train_embeddings = embeddings[train_indices]
     train_labels = metadata.loc[train_indices, "label"].to_numpy(dtype=np.int64)
+    train_metadata = metadata.loc[train_indices].reset_index(drop=False).rename(
+        columns={"index": "metadata_index"}
+    )
     val_embeddings = embeddings[val_indices]
     val_labels = metadata.loc[val_indices, "label"].to_numpy(dtype=np.int64)
 
@@ -117,6 +207,7 @@ def train_prototype_clustering(
     best_score = -np.inf
     best_row: dict[str, Any] | None = None
     best_classifier: PrototypeClusteringClassifier | None = None
+    best_prototype_metadata: pd.DataFrame | None = None
 
     for k in config.cluster_counts:
         if k <= 0:
@@ -128,6 +219,14 @@ def train_prototype_clustering(
             k=k,
             config=config
         )
+        prototypes, prototype_labels, prototype_metadata = _map_centroids_to_real_prototypes(
+            centroids=centroids,
+            centroid_labels=centroid_labels,
+            train_embeddings=train_embeddings,
+            train_labels=train_labels,
+            train_metadata=train_metadata,
+            config=config
+        )
         for top_n in config.top_ns:
             if top_n <= 0:
                 raise ValueError(f"top_ns must be positive, got {top_n}")
@@ -137,6 +236,8 @@ def train_prototype_clustering(
             classifier = _build_centroid_classifier(
                 centroids=centroids,
                 centroid_labels=centroid_labels,
+                prototypes=prototypes,
+                prototype_labels=prototype_labels,
                 top_n=top_n,
                 config=config
             )
@@ -169,6 +270,7 @@ def train_prototype_clustering(
                 best_score = score
                 best_row = row
                 best_classifier = classifier
+                best_prototype_metadata = prototype_metadata
 
             if config.verbose:
                 print(
@@ -178,16 +280,18 @@ def train_prototype_clustering(
                     f"weighted F1 {metrics['weighted_f1']:.4f}"
                 )
 
-    if best_row is None or best_classifier is None:
+    if best_row is None or best_classifier is None or best_prototype_metadata is None:
         raise RuntimeError("Grid search finished without a valid configuration")
 
     search_results_path = output_dir / "grid_search_results.csv"
     training_config_path = output_dir / "training_config.json"
+    prototype_metadata_path = output_dir / "prototype_metadata.csv"
     pd.DataFrame(results).sort_values(
         by=[f"val_{config.monitor_metric}", "val_accuracy"],
         ascending=False
     ).to_csv(search_results_path, index=False)
     training_config_path.write_text(json.dumps(asdict(config), indent=2), encoding="utf-8")
+    best_prototype_metadata.to_csv(prototype_metadata_path, index=False)
 
     best_classifier.save(
         output_dir,
@@ -195,6 +299,8 @@ def train_prototype_clustering(
             "best_validation": best_row,
             "embedding_dir": str(embedding_dir),
             "grid_search_results": str(search_results_path),
+            "prototype_metadata": str(prototype_metadata_path),
+            "prototype_source": "nearest_train_sample_to_class_kmeans_centroid",
         }
     )
 
@@ -212,5 +318,6 @@ def train_prototype_clustering(
         "model_dir": output_dir,
         "grid_search_results": search_results_path,
         "training_config": training_config_path,
+        "prototype_metadata": prototype_metadata_path,
         "best_config": best_row,
     }
