@@ -17,3 +17,14 @@ def pooled_feature_dir_name(model_name: str, pooling: str = "mean_std") -> str:
 
 def blackbox_run_dir_name(model_name: str) -> str:
     return f"blackbox_{model_name_to_slug(model_name)}"
+
+
+def blackbox_penultimate_feature_dir_name(
+    model_name: str,
+    normalization: str = "l2"
+) -> str:
+    return f"{blackbox_run_dir_name(model_name)}_penultimate_{normalization}"
+
+
+def prototype_clustering_run_dir_name(model_name: str) -> str:
+    return f"prototype_clustering_{model_name_to_slug(model_name)}"

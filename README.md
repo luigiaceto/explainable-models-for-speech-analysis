@@ -4,13 +4,16 @@ This project studies speech emotion recognition on CREMA-D. The final goal is to
 compare an explainable-by-design Concept Bottleneck Model (CBM) against a
 black-box neural baseline.
 
-At the moment, the implemented part of the project is the black-box baseline:
+At the moment, the implemented part of the project includes the black-box
+baseline and a first prototype clustering classifier:
 
 1. download the CREMA-D audio dataset;
-2. extract frozen audio encoder embeddings, currently `microsoft/wavlm-base-plus`;
+2. extract frozen audio encoder embeddings, currently `microsoft/wavlm-large`;
 3. apply mean + standard-deviation pooling;
 4. train an MLP emotion classifier;
-5. evaluate accuracy, macro F1, weighted F1, classification report, and confusion matrix.
+5. evaluate accuracy, macro F1, weighted F1, classification report, and confusion matrix;
+6. extract L2-normalized black-box penultimate embeddings;
+7. train and evaluate a prototype clustering classifier on those embeddings.
 
 The workflow is coordinated from `experiments_guide.ipynb`.
 
@@ -37,10 +40,17 @@ The current codebase contains:
   checkpointing, and early stopping;
 - a separate evaluation pipeline for the saved black-box checkpoint;
 - metric reporting utilities for accuracy, macro F1, weighted F1, per-class
-  precision/recall/F1, predictions, and confusion matrix.
+  precision/recall/F1, predictions, and confusion matrix;
+- extraction of 128-dimensional black-box penultimate embeddings with L2
+  normalization;
+- a prototype clustering classifier that fits K-means separately within each
+  emotion class on the training split, selects K and top-N on the validation
+  split, and evaluates once on the test split;
+- a per-sample prototype score utility that reports class scores, true label,
+  and predicted label for one CREMA-D file name.
 
-The CBM architecture, concept extraction, concept losses, and explainability
-metrics are not implemented yet.
+The CBM architecture, concept extraction, concept losses, and full
+explainability metrics are not implemented yet.
 
 ## Project Structure
 
@@ -54,12 +64,13 @@ metrics are not implemented yet.
 - `src/data/`: dataset-related code, including CREMA-D metadata parsing, class
   mappings, dataset statistics, feature loading, and the PyTorch feature dataset.
 - `src/preprocessing/`: preprocessing code for downloading CREMA-D audio and
-  extracting frozen audio encoder embeddings.
+  extracting frozen audio encoder embeddings and black-box penultimate embeddings.
 - `src/models/`: neural network definitions. Currently it contains the black-box
-  MLP classifier.
+  MLP classifier and the prototype clustering classifier.
 - `src/training/`: training code. Currently it contains the black-box training
-  loop and split creation logic.
+  loop, split creation logic, and prototype clustering grid search.
 - `src/evaluation/`: evaluation and metric reporting code for trained models.
+- `src/explanability/`: utilities for prototype-score based inspection.
 - `src/utils/`: shared helper functions such as seed setup and device selection.
 
 ## Environment
