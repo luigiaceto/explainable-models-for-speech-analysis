@@ -15,11 +15,11 @@ At the moment, the implemented part of the project is the black-box baseline:
 The workflow is coordinated from `experiments_guide.ipynb`.
 
 The notebook defines the active audio encoder with a single tuple,
-`FEATURE_EXTRACTOR = ("microsoft/wavlm-base-plus", 768)`, where the second
+`FEATURE_EXTRACTOR = ("microsoft/wavlm-large", 1024)`, where the second
 value is the encoder hidden-state size before pooling. The final MLP input size
 is derived from the pooling method. Feature and checkpoint directories are also
-derived from the model name, for example `data/features/wavlm_base_plus_mean_std/`
-and `checkpoints/blackbox_wavlm_base_plus/`.
+derived from the model name, for example `data/features/wavlm_large_mean_std/`
+and `checkpoints/blackbox_wavlm_large/`.
 
 ## Current Contents
 
