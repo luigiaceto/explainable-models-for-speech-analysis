@@ -11,7 +11,7 @@ from src.evaluation.metrics import compute_summary_classification_metrics
 from src.models.prototype_clustering import (
     PrototypeClusteringClassifier,
     PrototypeClusteringMetadata,
-    l2_normalize_rows,
+    l2_normalize_rows
 )
 
 
@@ -22,17 +22,10 @@ class PrototypeClusteringTrainingConfig:
     top_ns: tuple[int, ...] = (1, 3, 5, 7, 9)
     num_classes: int = 6
     random_state: int = 42
-    n_init: int = 10
-    max_iter: int = 300
-    monitor_metric: str = "macro_f1"
+    n_init: int = 10 # parameter of KMeans, try #n_init different initializations and keep the best
+    max_iter: int = 300 # since KMeans stops early when convergence is reached, this value does not imply that all runs perform 300 iterations
+    monitor_metric: str = "macro_f1" # accuracy, weighted_f1
     verbose: bool = True
-
-
-def _validate_metadata(metadata: pd.DataFrame) -> None:
-    required_columns = {"file_name", "label", "emotion", "split"}
-    missing_columns = required_columns.difference(metadata.columns)
-    if missing_columns:
-        raise ValueError(f"Embedding metadata is missing columns: {sorted(missing_columns)}")
 
 
 def _build_centroids(
@@ -44,6 +37,7 @@ def _build_centroids(
     centroids = []
     centroid_labels = []
 
+    # for each emotion, run KMeans in order to obtain k centroids
     for label in range(config.num_classes):
         class_embeddings = train_embeddings[train_labels == label]
         if len(class_embeddings) < k:
@@ -58,18 +52,18 @@ def _build_centroids(
             max_iter=config.max_iter,
             random_state=config.random_state
         )
-        kmeans.fit(class_embeddings)
+        kmeans.fit(class_embeddings) # runs the clustering
         centroids.append(kmeans.cluster_centers_.astype(np.float32))
-        centroid_labels.extend([label] * k)
+        centroid_labels.extend([label] * k) # add centroid labels
 
     return (
-        l2_normalize_rows(np.vstack(centroids)),
+        l2_normalize_rows(np.vstack(centroids)), # centroids produced by KMeans aren't normalized, even if the embeddings are l2
         np.asarray(centroid_labels, dtype=np.int64)
     )
 
 
 def _build_prototype_classifier(
-    prototypes: np.ndarray,
+    prototypes: np.ndarray, # not centroids, but medoids
     prototype_labels: np.ndarray,
     top_n: int,
     config: PrototypeClusteringTrainingConfig
@@ -77,7 +71,7 @@ def _build_prototype_classifier(
     metadata = PrototypeClusteringMetadata(
         top_n=top_n,
         label_names=EMOTION_NAMES,
-        embedding_dim=config.embedding_dim,
+        embedding_dim=config.embedding_dim
     )
     return PrototypeClusteringClassifier(
         metadata=metadata,
@@ -101,28 +95,24 @@ def _map_centroids_to_real_prototypes(
     prototype_labels = np.zeros_like(centroid_labels, dtype=np.int64)
     records = []
 
+    # for each emotion
     for label in range(config.num_classes):
         centroid_positions = np.where(centroid_labels == label)[0]
         class_positions = np.where(train_labels == label)[0]
-        if len(class_positions) < len(centroid_positions):
-            raise ValueError(
-                f"Cannot map {len(centroid_positions)} centroids for class {label}: "
-                f"only {len(class_positions)} training samples available"
-            )
-
         class_embeddings = normalized_train_embeddings[class_positions]
-        similarities = normalized_centroids[centroid_positions] @ class_embeddings.T
-        used_local_positions: set[int] = set()
+        similarities = normalized_centroids[centroid_positions] @ class_embeddings.T # cosine similarity
+        used_local_positions: set[int] = set() # samples already used as prototypes
 
         # Assign the most confident centroid-sample pairs first, while keeping
         # prototypes unique within each emotion class.
+        # Create a list of (centroid, samples) from the most similar to the least similar.
         pair_order = np.dstack(
             np.unravel_index(
                 np.argsort(-similarities, axis=None),
                 similarities.shape
             )
         )[0]
-        assigned_centroids: set[int] = set()
+        assigned_centroids: set[int] = set() # centroids already assigned to samples
 
         for centroid_local_position, sample_local_position in pair_order:
             centroid_local_position = int(centroid_local_position)
@@ -180,7 +170,6 @@ def train_prototype_clustering(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     embeddings, metadata = load_features(embedding_dir)
-    _validate_metadata(metadata)
     if embeddings.shape[1] != config.embedding_dim:
         raise ValueError(
             f"Expected embedding dim {config.embedding_dim}, got {embeddings.shape[1]}"
@@ -188,8 +177,6 @@ def train_prototype_clustering(
 
     train_indices = metadata.index[metadata["split"] == "train"].to_numpy()
     val_indices = metadata.index[metadata["split"] == "val"].to_numpy()
-    if len(train_indices) == 0 or len(val_indices) == 0:
-        raise ValueError("Both train and val splits must contain samples")
 
     train_embeddings = embeddings[train_indices]
     train_labels = metadata.loc[train_indices, "label"].to_numpy(dtype=np.int64)
@@ -226,8 +213,6 @@ def train_prototype_clustering(
             config=config
         )
         for top_n in config.top_ns:
-            if top_n <= 0:
-                raise ValueError(f"top_ns must be positive, got {top_n}")
             if top_n > k * config.num_classes:
                 continue
 
@@ -246,16 +231,11 @@ def train_prototype_clustering(
                 "val_accuracy": metrics["accuracy"],
                 "val_macro_f1": metrics["macro_f1"],
                 "val_weighted_f1": metrics["weighted_f1"],
-                "num_centroids": k * config.num_classes,
+                "num_centroids": k * config.num_classes
             }
             results.append(row)
 
             score_key = f"val_{config.monitor_metric}"
-            if score_key not in row:
-                raise ValueError(
-                    f"Unsupported monitor_metric '{config.monitor_metric}'. "
-                    "Use one of: accuracy, macro_f1, weighted_f1"
-                )
             score = float(row[score_key])
             tie_breaker = float(row["val_accuracy"])
             current_best_accuracy = -np.inf if best_row is None else float(best_row["val_accuracy"])
@@ -310,7 +290,7 @@ def train_prototype_clustering(
             "prototype_metadata": str(prototype_metadata_path),
             "cluster_centroids": str(centroids_path),
             "cluster_centroid_labels": str(centroid_labels_path),
-            "prototype_source": "nearest_train_sample_to_class_kmeans_centroid",
+            "prototype_source": "nearest_train_sample_to_class_kmeans_centroid"
         }
     )
 
@@ -331,5 +311,5 @@ def train_prototype_clustering(
         "prototype_metadata": prototype_metadata_path,
         "centroids": centroids_path,
         "centroid_labels": centroid_labels_path,
-        "best_config": best_row,
+        "best_config": best_row
     }

@@ -45,13 +45,6 @@ class PrototypeClusteringClassifier:
                 f"Expected prototype dim {self.metadata.embedding_dim}, "
                 f"got {self.prototypes.shape[1]}"
             )
-        if self.metadata.top_n <= 0:
-            raise ValueError("top_n must be positive")
-        if self.metadata.top_n > len(self.prototypes):
-            raise ValueError(
-                f"top_n={self.metadata.top_n} cannot exceed number of prototypes "
-                f"({len(self.prototypes)})"
-            )
 
     @property
     def num_classes(self) -> int:
@@ -79,7 +72,7 @@ class PrototypeClusteringClassifier:
         return scores
 
     def predict(self, embeddings: np.ndarray) -> np.ndarray:
-        return self.scores(embeddings).argmax(axis=1)
+        return self.scores(embeddings).argmax(axis=1) # return predicted label for each sample passed to the function
 
     def save(self, output_dir: str | Path, extra_config: dict[str, Any] | None = None) -> dict[str, Path]:
         output_dir = Path(output_dir)
@@ -104,7 +97,7 @@ class PrototypeClusteringClassifier:
         return {
             "prototypes": prototypes_path,
             "prototype_labels": prototype_labels_path,
-            "config": config_path,
+            "config": config_path
         }
 
 

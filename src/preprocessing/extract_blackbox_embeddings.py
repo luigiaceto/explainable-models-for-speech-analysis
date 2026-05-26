@@ -16,6 +16,8 @@ def _load_aligned_split_metadata(
     splits_csv: str | Path
 ) -> pd.DataFrame:
     split_metadata = pd.read_csv(splits_csv)
+    # verify that splits metadata and features extracted by audio encoder are aligned (same order).
+    # Rows of the .npy should be ordered as the rows in splits.csv.
     if len(split_metadata) != len(feature_metadata):
         raise ValueError("Split metadata and feature metadata have different lengths")
     if feature_metadata["file_name"].tolist() != split_metadata["file_name"].tolist():
@@ -23,7 +25,7 @@ def _load_aligned_split_metadata(
     return split_metadata
 
 
-def extract_blackbox_penultimate_embeddings(
+def extract_blackbox_penultimate_embeddings_l2(
     feature_dir: str | Path,
     checkpoint_path: str | Path,
     splits_csv: str | Path,

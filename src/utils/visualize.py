@@ -245,7 +245,7 @@ def plot_prototype_embedding_pca(
             "label": prototype_labels,
             "emotion": [EMOTION_NAMES[label] for label in prototype_labels],
             "pca_1": prototype_coordinates[:, 0],
-            "pca_2": prototype_coordinates[:, 1],
+            "pca_2": prototype_coordinates[:, 1]
         }
     )
 

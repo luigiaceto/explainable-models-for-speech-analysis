@@ -61,31 +61,28 @@ def explain_sample_by_filename(
     top_indices = np.argpartition(-similarities, kth=top_n - 1)[:top_n]
     top_indices = top_indices[np.argsort(-similarities[top_indices])]
 
+    prototype_metadata_by_position = prototype_metadata.set_index("prototype_position")
+
     top_prototypes = []
     for rank, prototype_index in enumerate(top_indices, start=1):
         prototype_index = int(prototype_index)
         prototype_label = int(classifier.prototype_labels[prototype_index])
+
+        if prototype_index not in prototype_metadata_by_position.index:
+            raise ValueError(f"Missing metadata for prototype {prototype_index}")
+
+        row = prototype_metadata_by_position.loc[prototype_index]
+
         prototype_info: dict[str, Any] = {
             "rank": rank,
             "prototype_position": prototype_index,
             "prototype_label": prototype_label,
             "prototype_emotion": EMOTION_NAMES[prototype_label],
-            "similarity": float(similarities[prototype_index])
+            "similarity": float(similarities[prototype_index]),
+            "prototype_file_name": row["file_name"],
+            "prototype_source_emotion": row["emotion"],
+            "centroid_similarity": float(row["centroid_similarity"])
         }
-
-        if prototype_metadata is not None:
-            matched_rows = prototype_metadata[
-                prototype_metadata["prototype_position"] == prototype_index
-            ]
-            if len(matched_rows) == 1:
-                row = matched_rows.iloc[0]
-                prototype_info.update(
-                    {
-                        "prototype_file_name": row["file_name"],
-                        "prototype_source_emotion": row["emotion"],
-                        "centroid_similarity": float(row["centroid_similarity"]),
-                    }
-                )
 
         top_prototypes.append(prototype_info)
 
