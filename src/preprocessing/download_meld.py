@@ -5,6 +5,7 @@ import tarfile
 from pathlib import Path
 import pandas as pd
 from tqdm.auto import tqdm
+from huggingface_hub import hf_hub_download
 
 from src.data.meld import EMOTION_NAME_TO_LABEL
 from src.data.common import save_metadata 
@@ -29,8 +30,15 @@ def setup_raw_data(raw_data_dir: Path) -> None:
         download_with_progress(url, csv_path, f"Downloading {split_name} CSV")
 
     # 2. Download Raw Master Tar (Videos)
-    master_tar_path = raw_data_dir / "MELD.Raw.tar.gz"
-    download_with_progress(RAW_DATA_URL, master_tar_path, "Downloading Raw MP4s (Large File)")
+    print("\nConnecting to Hugging Face to download MELD.Raw.tar.gz (11.8 GB)...")
+    master_tar_path = hf_hub_download(
+        repo_id="declare-lab/MELD",
+        repo_type="dataset",
+        filename="MELD.Raw.tar.gz",
+        local_dir=raw_data_dir  # Tell it to save directly into your raw data folder
+    )
+    
+    master_tar_path = Path(master_tar_path)
 
     # 3. Extract Master Tar
     # The master tar usually unpacks directly into the directory or creates a subfolder.
