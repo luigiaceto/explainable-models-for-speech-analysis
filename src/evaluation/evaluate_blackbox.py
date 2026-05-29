@@ -4,7 +4,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
-from src.data.crema_d import EMOTION_NAMES, load_features, make_crema_d_feature_loader
+from src.data.crema_d import EMOTION_NAMES as CREMA_D_EMOTION_NAMES
+from src.data.meld import EMOTION_NAMES as MELD_EMOTION_NAMES
+from src.data.common import load_features, make_feature_loader
 from src.evaluation.metrics import (
     compute_classification_metrics,
     save_classification_evaluation_outputs
@@ -20,10 +22,11 @@ def load_blackbox_model(
     compute_device = device_or_default(device)
     checkpoint = torch.load(checkpoint_path, map_location=compute_device)
     config = checkpoint["config"]
+    num_classes = 6 if config.get("dataset_name") == "crema_d" else 7 if config.get("dataset_name") == "meld" else 6
     model = BlackBoxEmotionClassifier(
         input_dim=config["input_dim"],
         hidden_dims=tuple(config["hidden_dims"]),
-        num_classes=config["num_classes"],
+        num_classes=num_classes,
         dropout=config["dropout"],
         activation=config["activation"]
     ).to(compute_device)
@@ -44,6 +47,16 @@ def evaluate_blackbox(
     model, checkpoint, compute_device = load_blackbox_model(checkpoint_path, device)
     features, feature_metadata = load_features(feature_dir)
 
+    config = checkpoint.get("config", {})
+    dataset_name = config.get("dataset_name", "crema_d") # Default to crema_d for backwards compatibility
+    
+    if dataset_name == "crema_d":
+        emotion_names = CREMA_D_EMOTION_NAMES
+    elif dataset_name == "meld":
+        emotion_names = MELD_EMOTION_NAMES
+    else:
+        raise ValueError(f"Unsupported dataset in checkpoint: {dataset_name}")
+    
     if splits_csv is None:
         splits_csv = checkpoint.get("splits_path")
     if splits_csv is None:
@@ -69,7 +82,7 @@ def evaluate_blackbox(
     if not indices:
         raise ValueError(f"Split '{split}' in {splits_csv} does not contain any samples")
 
-    loader = make_crema_d_feature_loader(
+    loader = make_feature_loader(
         features=features,
         metadata=split_metadata,
         split_name=split,
@@ -93,7 +106,7 @@ def evaluate_blackbox(
     y_true_array = np.concatenate(y_true)
     y_pred_array = np.concatenate(y_pred)
     probability_array = np.concatenate(probabilities)
-    metrics = compute_classification_metrics(y_true_array, y_pred_array, EMOTION_NAMES)
+    metrics = compute_classification_metrics(y_true_array, y_pred_array, emotion_names)
 
     if output_dir is not None:
         save_classification_evaluation_outputs(
@@ -101,7 +114,7 @@ def evaluate_blackbox(
             split_metadata.loc[indices],
             y_pred_array,
             probability_array,
-            label_names=EMOTION_NAMES,
+            label_names=emotion_names,
             output_dir=output_dir,
             split=split,
             model_name="Black-box",

@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import Any
 import numpy as np
 import pandas as pd
-from src.data.crema_d import EMOTION_NAMES, load_features
+from src.data.crema_d import EMOTION_NAMES
+from src.data.common import load_features
 from src.models.prototype_clustering import load_prototype_clustering_classifier
 
 

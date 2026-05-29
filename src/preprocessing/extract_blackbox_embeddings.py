@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm.auto import tqdm
-from src.data.crema_d import load_features, resolve_feature_paths
+from src.data.common import load_features, resolve_feature_paths
 from src.evaluation.evaluate_blackbox import load_blackbox_model
 from src.models.prototype_clustering import l2_normalize_rows
 

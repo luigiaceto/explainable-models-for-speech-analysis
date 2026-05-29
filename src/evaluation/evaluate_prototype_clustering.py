@@ -2,7 +2,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import numpy as np
-from src.data.crema_d import EMOTION_NAMES, load_features
+from src.data.crema_d import EMOTION_NAMES
+from src.data.common import load_features
 from src.evaluation.metrics import (
     compute_classification_metrics,
     save_classification_evaluation_outputs,

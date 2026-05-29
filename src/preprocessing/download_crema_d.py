@@ -4,7 +4,8 @@ import pandas as pd
 import soundfile as sf
 from datasets import Audio, load_dataset
 from tqdm.auto import tqdm
-from src.data.crema_d import parse_crema_d_filename, save_metadata
+from src.data.crema_d import parse_crema_d_filename
+from src.data.common import save_metadata
 
 
 # The manteiner of this HF dataset put all the crema-d dataset in the

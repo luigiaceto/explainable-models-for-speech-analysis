@@ -10,7 +10,9 @@ from sklearn.utils.class_weight import compute_class_weight
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from src.data.crema_d import EMOTION_NAMES, load_features, make_crema_d_feature_loader
+from src.data.crema_d import EMOTION_NAMES as CREMA_D_EMOTION_NAMES
+from src.data.meld import EMOTION_NAMES as MELD_EMOTION_NAMES
+from src.data.common import load_features, make_feature_loader
 from src.data.split import SAMPLE_STRATIFIED_SPLIT, create_splits
 from src.evaluation.metrics import compute_summary_classification_metrics
 from src.models.blackbox import BlackBoxEmotionClassifier
@@ -24,7 +26,7 @@ class TrainingConfig:
     encoder_embedding_dim: int | None = None
     pooling: str | None = None
     hidden_dims: tuple[int, int] = (256, 128) # MLP progressive projection dims
-    num_classes: int = 6
+    # num_classes: int = 6
     dropout: float = 0.2
     activation: str = "gelu"
     batch_size: int = 64
@@ -35,7 +37,7 @@ class TrainingConfig:
     val_size: float = 0.15
     test_size: float = 0.15
     split_strategy: str = SAMPLE_STRATIFIED_SPLIT
-    speaker_column: str = "actor_id"
+    # speaker_column: str = "actor_id"
     random_state: int = 42
     num_workers: int = 0
     use_class_weights: bool = True
@@ -48,12 +50,14 @@ class TrainingConfig:
     scheduler_min_lr: float = 1e-6
     device: str | None = None
     verbose: bool = True
+    dataset_name: str | None = "crema_d"
 
 
 def _classification_loss(
     metadata: pd.DataFrame,
     config: TrainingConfig,
-    device: torch.device
+    device: torch.device,
+    num_classes: int = 6,
 ) -> nn.Module:
     if not config.use_class_weights:
         return nn.CrossEntropyLoss()
@@ -61,7 +65,7 @@ def _classification_loss(
     train_labels = metadata.loc[metadata["split"] == "train", "label"].to_numpy()
     weights = compute_class_weight(
         class_weight="balanced",
-        classes=np.arange(config.num_classes),
+        classes=np.arange(num_classes),
         y=train_labels
     )
     return nn.CrossEntropyLoss(
@@ -125,26 +129,37 @@ def train_blackbox(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    if config.dataset_name == "crema_d":
+        num_classes = 6
+        speaker_column = "actor_id"
+        emotion_names = CREMA_D_EMOTION_NAMES
+    elif config.dataset_name == "meld":
+        num_classes = 7
+        speaker_column = "Speaker"
+        emotion_names = MELD_EMOTION_NAMES
+    else:
+        raise ValueError(f"Unsupported dataset: {config.dataset_name}")
+
     features, metadata = load_features(feature_dir)
     if features.shape[1] != config.input_dim:
         raise ValueError(
             f"Expected feature dim {config.input_dim}, got {features.shape[1]}"
         )
-
-    metadata = create_splits(
-        metadata=metadata,
-        train_size=config.train_size,
-        val_size=config.val_size,
-        test_size=config.test_size,
-        random_state=config.random_state,
-        split_strategy=config.split_strategy,
-        speaker_column=config.speaker_column
-    )
+    if config.dataset_name == "crema_d":
+        metadata = create_splits(
+            metadata=metadata,
+            train_size=config.train_size,
+            val_size=config.val_size,
+            test_size=config.test_size,
+            random_state=config.random_state,
+            split_strategy=config.split_strategy,
+            speaker_column=config.speaker_column
+        )
     splits_path = output_dir / "splits.csv"
     metadata.to_csv(splits_path, index=False)
 
     device = device_or_default(config.device)
-    train_loader = make_crema_d_feature_loader(
+    train_loader = make_feature_loader(
         features,
         metadata,
         batch_size=config.batch_size,
@@ -152,7 +167,7 @@ def train_blackbox(
         split_name="train",
         shuffle=True
     )
-    val_loader = make_crema_d_feature_loader(
+    val_loader = make_feature_loader(
         features,
         metadata,
         batch_size=config.batch_size,
@@ -164,12 +179,12 @@ def train_blackbox(
     model = BlackBoxEmotionClassifier(
         input_dim=config.input_dim,
         hidden_dims=config.hidden_dims,
-        num_classes=config.num_classes,
+        num_classes=num_classes,
         dropout=config.dropout,
         activation=config.activation
     ).to(device)
     
-    criterion = _classification_loss(metadata, config, device)
+    criterion = _classification_loss(metadata, config, device, num_classes)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=config.learning_rate,

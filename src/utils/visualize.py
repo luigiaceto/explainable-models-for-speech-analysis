@@ -8,7 +8,8 @@ import seaborn as sns
 import torch
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from src.data.crema_d import EMOTION_NAMES, load_features
+from src.data.crema_d import EMOTION_NAMES
+from src.data.common import load_features
 from src.evaluation.evaluate_blackbox import load_blackbox_model
 from src.models.prototype_clustering import load_prototype_clustering_classifier
 
