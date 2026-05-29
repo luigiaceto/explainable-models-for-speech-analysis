@@ -97,9 +97,9 @@ def download_and_process_meld(
 
     # MELD split mappings: (CSV name, Extracted Folder Name, Pipeline Split Name)
     splits_to_process = [
-        ("train_sent_emo.csv", "train", "train"),
-        ("dev_sent_emo.csv", "dev", "val"),
-        ("test_sent_emo.csv", "test", "test"),
+        ("train_sent_emo.csv", "train_splits", "train"),
+        ("dev_sent_emo.csv", "dev_splits_complete", "val"),
+        ("test_sent_emo.csv", "output_repeated_splits_test", "test"),
     ]
 
     records = []
