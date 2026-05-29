@@ -45,13 +45,18 @@ def setup_raw_data(raw_data_dir: Path) -> None:
     extract_tar_gz(master_tar_path, raw_data_dir)
 
     # 4. Extract nested sub-archives (train.tar.gz, dev.tar.gz, test.tar.gz)
-    for split in ["train", "dev", "test"]:
-        sub_tar = raw_data_dir / f"{split}.tar.gz"
-        if sub_tar.exists():
-            extract_tar_gz(sub_tar, raw_data_dir)
-            # Optional: delete the sub_tar to save disk space in Colab
-            sub_tar.unlink()
+    nested_tar_dir = raw_data_dir / "MELD.Raw"
+    if not nested_tar_dir.exists():
+        nested_tar_dir = raw_data_dir / "MELD.raw"
 
+    for split in ["train", "dev", "test"]:
+        sub_tar = nested_tar_dir / f"{split}.tar.gz"
+        if sub_tar.exists():
+            print(f"Found {sub_tar.name}, extracting...")
+            # Extract them into the root raw_data_dir to keep things organized
+            extract_tar_gz(sub_tar, raw_data_dir)
+            # Optional: delete the sub_tar to save disk space
+            sub_tar.unlink()
 
 def extract_audio_from_video(video_path: Path, audio_path: Path, sampling_rate: int) -> bool:
     """Extracts mono audio from an mp4 file using ffmpeg."""
