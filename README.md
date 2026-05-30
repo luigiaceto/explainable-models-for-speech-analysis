@@ -1,8 +1,7 @@
 # Explainable Models for Speech Analysis
 
-This project studies speech emotion recognition on CREMA-D. The final goal is to
-compare an explainable-by-design Concept Bottleneck Model (CBM) against a
-black-box neural baseline.
+This project studies speech emotion recognition on CREMA-D through a black-box
+neural baseline and post-hoc prototype-based explanations.
 
 At the moment, the implemented part of the project includes the black-box
 baseline and a post-hoc prototype-based explanation method. In this repository,
@@ -25,7 +24,8 @@ The current workflow is:
 7. fit emotion-specific K-means clusters on those embeddings;
 8. map each centroid to the nearest real training example of the same emotion;
 9. evaluate the resulting prototype-based surrogate classifier;
-10. inspect individual predictions through their nearest latent prototypes.
+10. measure surrogate fidelity against black-box predictions on the test split;
+11. inspect individual predictions through their nearest latent prototypes.
 
 The prototype component therefore has two roles:
 
@@ -71,12 +71,14 @@ The current codebase contains:
   within each emotion class on the training split, maps each centroid to the
   nearest real training sample of the same emotion, selects K and top-N on the
   validation split, and evaluates once on the test split;
+- a global fidelity utility that treats the black-box test predictions as the
+  target labels and reports the prototype surrogate agreement accuracy;
 - a per-sample prototype inspection utility that reports class scores, true
   label, predicted label, and the top-N real training prototypes used for one
   CREMA-D file name.
 
-The CBM architecture, concept extraction, concept losses, and full
-explainability metrics are not implemented yet.
+Additional explainability analyses beyond the current prototype-based workflow
+are not implemented yet.
 
 ## Explanation Method
 
@@ -143,7 +145,8 @@ Useful evaluation metrics for PLPE include:
 
 - classification accuracy, macro F1, and weighted F1 against ground-truth labels;
 - global fidelity between the prototype surrogate predictions and black-box
-  predictions;
+  predictions, implemented as test-split agreement accuracy in
+  `src/explainability/surrogate_fidelity.py`;
 - local fidelity around individual samples;
 - prototype purity within each emotion or predicted class;
 - representativeness, measured by distances from samples to their nearest
@@ -202,7 +205,8 @@ Useful references:
 - `src/training/`: training code. Currently it contains the black-box training
   loop, split creation logic, and prototype clustering grid search.
 - `src/evaluation/`: evaluation and metric reporting code for trained models.
-- `src/explainability/`: utilities for prototype-score based inspection.
+- `src/explainability/`: utilities for prototype-score based inspection and
+  surrogate fidelity evaluation.
 - `src/utils/`: shared helper functions such as seed setup, device selection,
   and visualization utilities.
 
