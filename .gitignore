@@ -223,10 +223,9 @@ appunti/
 
 # Project artifacts
 data/raw/
+checkpoints/
 reports/
-*.npy
 *.npz
-*.pt
 *.pth
 *.ckpt
 wandb/
