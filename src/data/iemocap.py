@@ -2,88 +2,91 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+import re
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 
 
-EMOTION_CODE_TO_NAME = {
-    "ANG": "anger",
-    "DIS": "disgust",
-    "FEA": "fear",
-    "HAP": "happy",
-    "NEU": "neutral",
-    "SAD": "sad"
-}
-
-EMOTION_NAMES = ["anger", "disgust", "fear", "happy", "neutral", "sad"]
+EMOTION_NAMES = [
+    "angry",
+    "disgust",
+    "excited",
+    "fear",
+    "frustrated",
+    "happy",
+    "neutral",
+    "other",
+    "sad",
+    "surprise",
+]
 
 EMOTION_NAME_TO_LABEL = {
     name: index for index, name in enumerate(EMOTION_NAMES)
-} # { "anger": 0, "disgust": 1, ... }
-
-INTENSITY_CODE_TO_NAME = {
-    "LO": "low",
-    "MD": "medium",
-    "HI": "high",
-    "XX": "unspecified"
 }
 
-SENTENCE_CODE_TO_TEXT = {
-    "IEO": "It's eleven o'clock",
-    "TIE": "That is exactly what happened",
-    "IOM": "I'm on my way to the meeting",
-    "IWW": "I wonder what this is about",
-    "TAI": "The airplane is almost full",
-    "MTI": "Maybe tomorrow it will be cold",
-    "IWL": "I would like a new alarm clock",
-    "ITH": "I think I have a doctor's appointment",
-    "DFA": "Don't forget a jacket",
-    "ITS": "I think I've seen this before",
-    "TSI": "The surface is slick",
-    "WSI": "We'll stop in a couple of minutes",
-}
+EMOTION_SCORE_COLUMNS = [
+    "frustrated",
+    "angry",
+    "sad",
+    "disgust",
+    "excited",
+    "fear",
+    "neutral",
+    "surprise",
+    "happy",
+]
+
+IEMOCAP_FILENAME_PATTERN = re.compile(r"^(Ses\d{2})([FM])_")
 
 
-def parse_crema_d_filename(file_name: str) -> dict[str, object]:
-    """Parse CREMA-D filenames such as ``1001_DFA_ANG_XX.wav``."""
-    stem = Path(file_name).stem
-    parts = stem.split("_")
-    if len(parts) != 4:
-        raise ValueError(f"Expected CREMA-D filename with 4 parts, got: {file_name}")
+def normalize_emotion_name(emotion: str) -> str:
+    """Normalize IEMOCAP emotion names to the project label vocabulary."""
+    normalized = str(emotion).strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized not in EMOTION_NAME_TO_LABEL:
+        raise ValueError(f"Unsupported IEMOCAP emotion label: {emotion!r}")
+    return normalized
 
-    actor_id, sentence_code, emotion_code, intensity_code = parts
-    if emotion_code not in EMOTION_CODE_TO_NAME:
-        raise ValueError(f"Unknown emotion code '{emotion_code}' in: {file_name}")
 
-    emotion = EMOTION_CODE_TO_NAME[emotion_code]
+def parse_iemocap_filename(file_name: str) -> dict[str, object]:
+    """Parse IEMOCAP filenames such as ``Ses01F_impro01_F000.wav``."""
+    file_name = Path(file_name).name
+    match = IEMOCAP_FILENAME_PATTERN.match(Path(file_name).stem)
+    if match is None:
+        raise ValueError(f"Expected IEMOCAP filename, got: {file_name}")
+
+    session_id, speaker_gender_code = match.groups()
+    speaker_id = f"{session_id}{speaker_gender_code}"
     return {
-        "file_name": Path(file_name).name,
-        "actor_id": actor_id,
-        "sentence_code": sentence_code,
-        "sentence": SENTENCE_CODE_TO_TEXT.get(sentence_code, "unknown"),
-        "emotion_code": emotion_code,
-        "emotion": emotion,
-        "label": EMOTION_NAME_TO_LABEL[emotion],
-        "intensity_code": intensity_code,
-        "intensity": INTENSITY_CODE_TO_NAME.get(intensity_code, "unknown")
+        "file_name": file_name,
+        "session_id": session_id,
+        "speaker_id": speaker_id,
+        "speaker_gender_code": speaker_gender_code,
     }
 
 
-def build_metadata_from_audio_dir(audio_dir: str | Path) -> pd.DataFrame:
-    """Build a metadata table by scanning a CREMA-D ``AudioWAV`` directory."""
-    audio_dir = Path(audio_dir)
-    records = []
-    for audio_path in sorted(audio_dir.glob("*.wav")):
-        record = parse_crema_d_filename(audio_path.name)
-        record["audio_path"] = str(audio_path)
-        records.append(record)
-
-    if not records:
-        raise FileNotFoundError(f"No WAV files found in {audio_dir}")
-
-    return pd.DataFrame(records).sort_values("file_name").reset_index(drop=True)
+def build_metadata_record(
+    file_name: str,
+    emotion: str,
+    audio_path: str | Path,
+    duration_seconds: float | None = None,
+    extra_fields: dict[str, object] | None = None,
+) -> dict[str, object]:
+    normalized_emotion = normalize_emotion_name(emotion)
+    record = parse_iemocap_filename(file_name)
+    record.update(
+        {
+            "emotion": normalized_emotion,
+            "label": EMOTION_NAME_TO_LABEL[normalized_emotion],
+            "audio_path": str(audio_path),
+        }
+    )
+    if duration_seconds is not None:
+        record["duration_seconds"] = float(duration_seconds)
+    if extra_fields is not None:
+        record.update(extra_fields)
+    return record
 
 
 def save_metadata(metadata: pd.DataFrame, output_path: str | Path) -> Path:
@@ -118,12 +121,20 @@ def emotion_distribution(metadata: pd.DataFrame) -> pd.DataFrame:
 
 
 def print_dataset_statistics(metadata: pd.DataFrame) -> None:
-    """Print compact CREMA-D statistics useful in notebooks and scripts."""
+    """Print compact IEMOCAP statistics useful in notebooks and scripts."""
     print(f"Total samples: {len(metadata)}")
-    if "actor_id" in metadata.columns:
-        print(f"Actors: {metadata['actor_id'].nunique()}")
-    if "sentence_code" in metadata.columns:
-        print(f"Sentence prompts: {metadata['sentence_code'].nunique()}")
+    if "speaker_id" in metadata.columns:
+        print(f"Speakers: {metadata['speaker_id'].nunique()}")
+    if "session_id" in metadata.columns:
+        print(f"Sessions: {metadata['session_id'].nunique()}")
+    if "duration_seconds" in metadata.columns:
+        total_duration_hours = metadata["duration_seconds"].sum() / 3600.0
+        print(f"Audio duration: {total_duration_hours:.2f} hours")
+        print(
+            "Duration range: "
+            f"{metadata['duration_seconds'].min():.2f}s - "
+            f"{metadata['duration_seconds'].max():.2f}s"
+        )
     print("\nSamples per emotion:")
     print(emotion_distribution(metadata).to_string(index=False))
 
@@ -138,13 +149,13 @@ def resolve_feature_paths(feature_dir: str | Path) -> FeaturePaths:
     feature_dir = Path(feature_dir)
     return FeaturePaths(
         feature_path=feature_dir / "features.npy",
-        metadata_path=feature_dir / "metadata.csv"
+        metadata_path=feature_dir / "metadata.csv",
     )
 
 
 def load_features(
     feature_dir: str | Path,
-    mmap_mode: str | None = None
+    mmap_mode: str | None = None,
 ) -> tuple[np.ndarray, pd.DataFrame]:
     paths = resolve_feature_paths(feature_dir)
     if not paths.feature_path.exists():
@@ -161,20 +172,19 @@ def load_features(
     return features, metadata
 
 
-class CremaDFeatureDataset(Dataset):
+class IemocapFeatureDataset(Dataset):
     """PyTorch dataset backed by precomputed pooled audio embeddings."""
 
     def __init__(
         self,
         features: np.ndarray,
         metadata: pd.DataFrame,
-        indices: Iterable[int] | None = None
+        indices: Iterable[int] | None = None,
     ) -> None:
-        # load all features and labels at once
-        self.features = torch.as_tensor(features, dtype=torch.float32)
+        self.features = torch.as_tensor(np.asarray(features), dtype=torch.float32)
         self.labels = torch.as_tensor(
             metadata["label"].to_numpy(dtype=np.int64),
-            dtype=torch.long
+            dtype=torch.long,
         )
         self.metadata = metadata.reset_index(drop=True)
         self.indices = (
@@ -193,25 +203,25 @@ class CremaDFeatureDataset(Dataset):
         return feature, label
 
 
-def make_crema_d_feature_loader(
+def make_iemocap_feature_loader(
     features: np.ndarray,
     metadata: pd.DataFrame,
     split_name: str,
     batch_size: int,
     num_workers: int,
-    shuffle: bool
+    shuffle: bool,
 ) -> DataLoader:
-    """Create a DataLoader for one split of precomputed CREMA-D features."""
+    """Create a DataLoader for one split of precomputed IEMOCAP features."""
     indices = metadata.index[metadata["split"] == split_name].tolist()
-    dataset = CremaDFeatureDataset(
+    dataset = IemocapFeatureDataset(
         features=features,
         metadata=metadata,
-        indices=indices
+        indices=indices,
     )
     return DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        pin_memory=torch.cuda.is_available()
+        pin_memory=torch.cuda.is_available(),
     )

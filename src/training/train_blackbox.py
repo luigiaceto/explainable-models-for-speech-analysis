@@ -10,7 +10,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from src.data.crema_d import EMOTION_NAMES, load_features, make_crema_d_feature_loader
+from src.data.iemocap import EMOTION_NAMES, load_features, make_iemocap_feature_loader
 from src.data.split import SAMPLE_STRATIFIED_SPLIT, create_splits
 from src.evaluation.metrics import compute_summary_classification_metrics
 from src.models.blackbox import BlackBoxEmotionClassifier
@@ -24,7 +24,7 @@ class TrainingConfig:
     encoder_embedding_dim: int | None = None
     pooling: str | None = None
     hidden_dims: tuple[int, int] = (256, 128) # MLP progressive projection dims
-    num_classes: int = 6
+    num_classes: int = len(EMOTION_NAMES)
     dropout: float = 0.2
     activation: str = "gelu"
     batch_size: int = 64
@@ -35,11 +35,11 @@ class TrainingConfig:
     val_size: float = 0.15
     test_size: float = 0.15
     split_strategy: str = SAMPLE_STRATIFIED_SPLIT
-    speaker_column: str = "actor_id"
+    speaker_column: str = "speaker_id"
     random_state: int = 42
     num_workers: int = 0
     use_class_weights: bool = True
-    early_stopping_patience: int = 10 # if the model doesn't improve after N epochs we stop the training
+    early_stopping_patience: int = 10 # stop after N epochs without validation improvement
     monitor_metric: str = "macro_f1" # metric used to check if the model is improving on the validation set
     lr_scheduler: str | None = "reduce_on_plateau"
     scheduler_monitor_metric: str = "macro_f1"
@@ -59,11 +59,14 @@ def _classification_loss(
         return nn.CrossEntropyLoss()
 
     train_labels = metadata.loc[metadata["split"] == "train", "label"].to_numpy()
-    weights = compute_class_weight(
+    present_classes = np.unique(train_labels)
+    computed_weights = compute_class_weight(
         class_weight="balanced",
-        classes=np.arange(config.num_classes),
+        classes=present_classes,
         y=train_labels
     )
+    weights = np.zeros(config.num_classes, dtype=np.float32)
+    weights[present_classes] = computed_weights
     return nn.CrossEntropyLoss(
         weight=torch.as_tensor(weights, dtype=torch.float32, device=device)
     )
@@ -118,7 +121,7 @@ def train_blackbox(
     config: TrainingConfig | None = None
 ) -> dict[str, Any]:
     """Train the black-box baseline on precomputed features."""
-    # if a TrainingConfig object isn't passed, we use the default one 
+    # Use the default configuration when one is not provided.
     config = config or TrainingConfig()
     set_seed(config.random_state)
 
@@ -144,7 +147,7 @@ def train_blackbox(
     metadata.to_csv(splits_path, index=False)
 
     device = device_or_default(config.device)
-    train_loader = make_crema_d_feature_loader(
+    train_loader = make_iemocap_feature_loader(
         features,
         metadata,
         batch_size=config.batch_size,
@@ -152,7 +155,7 @@ def train_blackbox(
         split_name="train",
         shuffle=True
     )
-    val_loader = make_crema_d_feature_loader(
+    val_loader = make_iemocap_feature_loader(
         features,
         metadata,
         batch_size=config.batch_size,

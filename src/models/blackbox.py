@@ -13,14 +13,14 @@ class BlackBoxEmotionClassifier(nn.Module):
     -> GELU
     -> Linear 256 -> 128
     -> GELU
-    -> Linear 128 -> 6 emotions
+    -> Linear 128 -> emotion logits
     """
 
     def __init__(
         self,
         input_dim: int = 1536,
         hidden_dims: tuple[int, int] = (256, 128),
-        num_classes: int = 6,
+        num_classes: int = 10,
         dropout: float = 0.2,
         activation: str = "gelu"
     ) -> None:

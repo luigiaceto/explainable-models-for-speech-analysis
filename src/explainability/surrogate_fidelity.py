@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
-from src.data.crema_d import EMOTION_NAMES, load_features
+from src.data.iemocap import EMOTION_NAMES, load_features
 from src.evaluation.evaluate_blackbox import load_blackbox_model
 from src.models.prototype_clustering import load_prototype_clustering_classifier
 

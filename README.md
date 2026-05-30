@@ -1,6 +1,6 @@
 # Explainable Models for Speech Analysis
 
-This project studies speech emotion recognition on CREMA-D through a black-box
+This project studies speech emotion recognition on IEMOCAP through a black-box
 neural baseline and post-hoc prototype-based explanations.
 
 At the moment, the implemented part of the project includes the black-box
@@ -15,8 +15,9 @@ space learned by the black-box classifier.
 
 The current workflow is:
 
-1. download the CREMA-D audio dataset;
-2. extract frozen audio encoder embeddings, currently `microsoft/wavlm-large`;
+1. download the IEMOCAP audio dataset;
+2. extract frozen audio encoder embeddings, currently `microsoft/wavlm-large`,
+   keeping only audio utterances longer than 2 seconds and no longer than 15 seconds;
 3. apply mean + standard-deviation pooling;
 4. train an MLP emotion classifier;
 5. evaluate accuracy, macro F1, weighted F1, classification report, and confusion matrix;
@@ -45,17 +46,24 @@ The notebook defines the active audio encoder with a single tuple,
 `FEATURE_EXTRACTOR = ("microsoft/wavlm-large", 1024)`, where the second
 value is the encoder hidden-state size before pooling. The final MLP input size
 is derived from the pooling method. Feature and checkpoint directories are also
-derived from the model name, for example `data/features/wavlm_large_mean_std/`
-and `checkpoints/blackbox_wavlm_large/`.
+derived from the dataset, model name, and duration filter, for example
+`data/features/iemocap_wavlm_large_mean_std_dur_gt_2_le_15/` and
+`checkpoints/blackbox_iemocap_wavlm_large_dur_gt_2_le_15/`.
+
+The active IEMOCAP target vocabulary uses all ten emotion classes represented
+by the dataset mirror: angry, disgust, excited, fear, frustrated, happy,
+neutral, other, sad, and surprise.
 
 ## Current Contents
 
 The current codebase contains:
 
-- a CREMA-D audio download pipeline based on an audio-only Hugging Face mirror;
-- metadata parsing from CREMA-D filenames;
+- an IEMOCAP audio download pipeline based on a Hugging Face mirror;
+- metadata parsing from IEMOCAP filenames;
 - dataset statistics utilities;
 - frozen audio encoder feature extraction with masked mean + standard-deviation pooling;
+- duration filtering during feature extraction, so saved feature metadata is
+  the authoritative dataset used by training and evaluation;
 - a PyTorch dataset for precomputed audio embeddings;
 - an MLP black-box emotion classifier;
 - a training loop with configurable train/validation/test split strategy
@@ -75,7 +83,7 @@ The current codebase contains:
   target labels and reports the prototype surrogate agreement accuracy;
 - a per-sample prototype inspection utility that reports class scores, true
   label, predicted label, and the top-N real training prototypes used for one
-  CREMA-D file name.
+  IEMOCAP file name.
 
 Additional explainability analyses beyond the current prototype-based workflow
 are not implemented yet.
@@ -189,16 +197,16 @@ Useful references:
 
 ## Project Structure
 
-- `data/`: local data storage. It is used for downloaded CREMA-D audio and
+- `data/`: local data storage. It is used for downloaded IEMOCAP audio and
   generated feature matrices. This directory is ignored by Git because it can
   become large.
 - `checkpoints/`: local model checkpoint storage. It stores trained model weights,
   split files, and training history. This directory is ignored by Git.
 - `reports/`: local evaluation outputs such as test metrics, predictions, and
   confusion matrix plots. This directory is ignored by Git.
-- `src/data/`: dataset-related code, including CREMA-D metadata parsing, class
+- `src/data/`: dataset-related code, including IEMOCAP metadata parsing, class
   mappings, dataset statistics, feature loading, and the PyTorch feature dataset.
-- `src/preprocessing/`: preprocessing code for downloading CREMA-D audio and
+- `src/preprocessing/`: preprocessing code for downloading IEMOCAP audio and
   extracting frozen audio encoder embeddings and black-box penultimate embeddings.
 - `src/models/`: neural network definitions. Currently it contains the black-box
   MLP classifier and the prototype clustering classifier.

@@ -70,7 +70,7 @@ def create_speaker_independent_splits(
     val_size: float,
     test_size: float,
     random_state: int,
-    speaker_column: str = "actor_id"
+    speaker_column: str = "speaker_id"
 ) -> pd.DataFrame:
     """Create train/validation/test splits with disjoint speakers."""
     metadata = metadata.reset_index(drop=True)
@@ -138,7 +138,7 @@ def create_splits(
     test_size: float,
     random_state: int,
     split_strategy: str,
-    speaker_column: str = "actor_id"
+    speaker_column: str = "speaker_id"
 ) -> pd.DataFrame:
     """Create train/validation/test splits using the selected strategy."""
     if split_strategy == SAMPLE_STRATIFIED_SPLIT:

@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
-from src.data.crema_d import EMOTION_NAMES, load_features
+from src.data.iemocap import EMOTION_NAMES, load_features
 from src.evaluation.metrics import compute_summary_classification_metrics
 from src.models.prototype_clustering import (
     PrototypeClusteringClassifier,
@@ -20,7 +20,7 @@ class PrototypeClusteringTrainingConfig:
     embedding_dim: int = 128
     cluster_counts: tuple[int, ...] = (1, 2, 3, 4, 5, 8, 10)
     top_ns: tuple[int, ...] = (1, 3, 5, 7, 9)
-    num_classes: int = 6
+    num_classes: int = len(EMOTION_NAMES)
     random_state: int = 42
     n_init: int = 10 # parameter of KMeans, try #n_init different initializations and keep the best
     max_iter: int = 300 # since KMeans stops early when convergence is reached, this value does not imply that all runs perform 300 iterations

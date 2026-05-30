@@ -9,7 +9,7 @@ This project, developed for an Explainable AI course of an MSc in Computer Engin
 - final classification layer
 
 ## Dataset to use
-CREMA-D, made of independent audio traces with the labeled emotion to predict. We ignore any video data and are interested only in predicting which of the 6 emotion reflect the audio trace.
+IEMOCAP, using only the audio utterances and their emotion labels. We ignore any video, text, and motion-capture modalities for model input and predict the full IEMOCAP emotion vocabulary.
 
 ## Concepts
 Since the concepts are not annotated for the dataset, we should extract them. To do so, we have to employ python libraries to extract audio information from the traces: in this way we may create interpretable audio concepts to use as ground truth.
@@ -36,10 +36,10 @@ Finally, we have to compute explainability metrics such as faithfulness
 - src/data/ containing the Dataset object
 - checkpoints/ containing model weights
 - src/models/ containing network architecture and custom losses
-- src/preprocessing/ containing pre-processing scripts, ecc
+- src/preprocessing/ containing preprocessing scripts, etc.
 - src/training/ containing the training scripts
 - src/evaluation/ containing the evaluation scripts
-- experiments_guide.ipynb is the nootebook to coordinate all the files/functions, in order to execute environment setup (pulling the repo, installing the reqs, downloading the dataset), pre-processing, training, evaluation, ecc
+- experiments_guide.ipynb is the notebook coordinating environment setup (pulling the repo, installing requirements, downloading the dataset), preprocessing, training, evaluation, etc.
 
 # ARCHITECTURE IDEA
 
@@ -107,10 +107,10 @@ Dropout 0.2
 
 Linear 128 → K continuous concepts
 
-Linear K → 6 emotions
+Linear K → IEMOCAP emotions
 
 # IMPORTANT
-The entire project should be in english: filenames, variable names, comments, docs, ecc.
+The entire project should be in English: filenames, variable names, comments, docs, etc.
 
 # CHANGELOG
 By now, only the black-box architecture has been implemented.
