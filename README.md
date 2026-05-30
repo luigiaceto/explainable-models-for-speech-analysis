@@ -33,7 +33,7 @@ The prototype component therefore has two roles:
 - **post-hoc explainer**: retrieve representative training examples that the
   black-box maps close to the sample being explained;
 - **prototype-based surrogate classifier**: predict emotions by summing
-  similarities to the top-N prototypes and compare this surrogate against the
+  similarities to all prototypes of each class and compare this surrogate against the
   ground-truth labels.
 
 When the goal is to explain the black-box itself, the most relevant evaluation is
@@ -81,12 +81,12 @@ The current codebase contains:
   normalization;
 - the Post-hoc Latent Prototype Explainer (PLPE), which fits K-means separately
   within each emotion class on the training split, maps each centroid to the
-  nearest real training sample of the same emotion, selects K and top-N on the
+  nearest real training sample of the same emotion, selects K on the
   validation split, and evaluates once on the test split;
 - a global fidelity utility that treats the black-box test predictions as the
   target labels and reports the prototype surrogate agreement accuracy;
 - a per-sample prototype inspection utility that reports class scores, true
-  label, predicted label, and the top-N real training prototypes used for one
+  label, predicted label, and the real training prototypes used for one
   IEMOCAP file name.
 
 Additional explainability analyses beyond the current prototype-based workflow
@@ -124,8 +124,8 @@ The explainer then:
 3. fits K-means separately inside each emotion class;
 4. replaces each centroid with the nearest real training sample, so every
    prototype is listenable and inspectable;
-5. classifies a new sample by retrieving its top-N nearest prototypes and
-   summing cosine similarities per emotion.
+5. classifies a new sample by summing cosine similarities to all prototypes of
+   each emotion.
 
 This makes the explanation example-based: a prediction can be described as
 "this sample is close, in the black-box latent space, to these representative

@@ -30,7 +30,7 @@ def explain_sample_by_filename(
     embedding_dir: str | Path,
     random_state: int | None = None
 ) -> dict[str, Any]:
-    """Return labels, class scores, and top-N prototype neighbors for one sample.
+    """Return labels, class scores, and prototype neighbors for one sample.
 
     This function reuses saved embeddings and prototype files. It does not load
     the original WAV file, the audio encoder, or the black-box classifier.
@@ -62,9 +62,8 @@ def explain_sample_by_filename(
     predicted_label = int(np.argmax(scores))
     true_label = int(metadata.loc[sample_index, "label"])
 
-    top_n = classifier.metadata.top_n
-    top_indices = np.argpartition(-similarities, kth=top_n - 1)[:top_n]
-    top_indices = top_indices[np.argsort(-similarities[top_indices])]
+    top_n = len(classifier.prototypes)
+    top_indices = np.argsort(-similarities)[:top_n]
 
     prototype_metadata_by_position = prototype_metadata.set_index("prototype_position")
 
@@ -115,7 +114,7 @@ def print_prototype_explanation(explanation: dict[str, Any]) -> None:
     for emotion, score in explanation["scores"].items():
         print(f"  {emotion:>7}: {score:.4f}")
 
-    print(f"\nTop-{explanation['top_n']} prototypes:")
+    print(f"\nAll {explanation['top_n']} voting prototypes, sorted by similarity:")
     for prototype in explanation["top_prototypes"]:
         file_name = prototype.get("prototype_file_name", "<metadata unavailable>")
         print(
