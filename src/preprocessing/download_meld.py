@@ -155,7 +155,7 @@ def download_and_process_meld(
     print(f"Successfully processed {len(metadata)} MELD files.")
     return metadata    
 
-def download_meld_audio(output_dir: Path) -> None:
+def download_meld_audio(output_dir: Path) -> pd.DataFrame:
     """Downloads MP4 archives, and extracts them."""
     output_dir = Path(output_dir)
     audio_dir = output_dir / "AudioWAV"
@@ -173,7 +173,7 @@ def download_meld_audio(output_dir: Path) -> None:
     zip_path = audio_dir / "audio.zip"
     
     # Construct the gdown URL
-    audio_gdrive_url = f'https://drive.google.com/uc?id=1wTH5ubF6ZP-JDMn6jU4pwyrEc-stpOwR'
+    audio_gdrive_url = f'https://drive.google.com/uc?id=1Oyleg3tlQtwvsThxHVzgqfyrGOs3EjGR'
     
     # Download using gdown
     gdown.download(audio_gdrive_url, str(zip_path), quiet=False)
@@ -193,3 +193,4 @@ def download_meld_audio(output_dir: Path) -> None:
     
     # Download using gdown
     gdown.download(metadata_gdrive_url, str(metadata_path), quiet=False)
+    return pd.read_csv(metadata_path)
