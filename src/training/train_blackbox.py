@@ -68,7 +68,8 @@ def _classification_loss(
     weights = np.zeros(config.num_classes, dtype=np.float32)
     weights[present_classes] = computed_weights
     return nn.CrossEntropyLoss(
-        weight=torch.as_tensor(weights, dtype=torch.float32, device=device)
+        weight=torch.as_tensor(weights, dtype=torch.float32, device=device),
+        label_smoothing=0.05
     )
 
 

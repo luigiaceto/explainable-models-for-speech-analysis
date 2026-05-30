@@ -19,8 +19,8 @@
       "k": 3,
       "top_n": 1,
       "val_accuracy": 0.7411242603550295,
-      "val_macro_f1": 0.7439817764750861,
-      "val_weighted_f1": 0.7403875373922723,
+      "val_macro_f1": 0.7443066196317683,
+      "val_weighted_f1": 0.7404932776933231,
       "num_centroids": 12
     },
     "embedding_dir": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/data/features/blackbox_iemocap_speech_4class_wavlm_large_dur_gt_2_le_15_penultimate_l2",

@@ -8,7 +8,7 @@
     128
   ],
   "num_classes": 4,
-  "dropout": 0.25,
+  "dropout": 0.4,
   "activation": "gelu",
   "batch_size": 64,
   "epochs": 100,
