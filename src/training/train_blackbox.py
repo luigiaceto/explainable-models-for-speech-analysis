@@ -153,7 +153,7 @@ def train_blackbox(
             test_size=config.test_size,
             random_state=config.random_state,
             split_strategy=config.split_strategy,
-            speaker_column=config.speaker_column
+            speaker_column=speaker_column
         )
     splits_path = output_dir / "splits.csv"
     metadata.to_csv(splits_path, index=False)
@@ -262,7 +262,7 @@ def train_blackbox(
                 {
                     "model_state_dict": model.state_dict(),
                     "config": asdict(config),
-                    "label_names": EMOTION_NAMES,
+                    "label_names": emotion_names,
                     "best_epoch": best_epoch,
                     "best_val_score": best_score,
                     "best_train_metrics": best_train_metrics,
