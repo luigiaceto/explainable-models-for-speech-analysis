@@ -7,11 +7,10 @@ At the moment, the implemented part of the project includes the black-box
 baseline and a post-hoc prototype-based explanation method. In this repository,
 the method is called **Post-hoc Latent Prototype Explainer (PLPE)**.
 
-PLPE is not an explainable-by-design neural architecture. The black-box model is
-trained first, then its penultimate hidden representation is extracted and used
-to build representative class prototypes. The method explains a prediction by
-showing real training examples that are close to the input in the representation
-space learned by the black-box classifier.
+The black-box model is trained first, then its penultimate hidden representation
+is extracted and used to build representative class prototypes. The method
+explains a prediction by showing real training examples that are close to the
+input in the representation space learned by the black-box classifier.
 
 The current workflow is:
 
@@ -121,10 +120,10 @@ training samples".
 
 ### What PLPE Is Not
 
-PLPE should not be described as a prototype network or an explainable-by-design
-model. Unlike architectures such as ProtoPNet, prototypes are not part of the
-model's forward pass during black-box training, and the black-box does not depend
-on them to make its original prediction.
+PLPE should not be described as a prototype network. Unlike architectures such
+as ProtoPNet, prototypes are not part of the model's forward pass during
+black-box training, and the black-box does not depend on them to make its
+original prediction.
 
 The method is better described as:
 
@@ -155,12 +154,12 @@ Useful evaluation metrics for PLPE include:
 
 ## Related Work Context
 
-Prototype-based deep learning is often associated with explainable-by-design
-models. For example, the original case-based prototype network by Li et al.
-learns prototypes during training in an autoencoder latent space, while ProtoPNet
-classifies images by comparing parts of an input with learned prototypical parts.
-Those methods differ from PLPE because their prototypes participate directly in
-the learned model.
+Prototype-based deep learning includes methods where prototypes participate
+directly in the learned model. For example, the original case-based prototype
+network by Li et al. learns prototypes during training in an autoencoder latent
+space, while ProtoPNet classifies images by comparing parts of an input with
+learned prototypical parts. Those methods differ from PLPE because PLPE adds
+prototypes only after the black-box has been trained.
 
 There are also audio-specific prototype methods. "A Model You Can Hear" learns
 playable spectral prototypes for audio identification. AudioProtoPNet adapts
