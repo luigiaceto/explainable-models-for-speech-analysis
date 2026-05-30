@@ -6,6 +6,8 @@ from pathlib import Path
 import pandas as pd
 from tqdm.auto import tqdm
 from huggingface_hub import hf_hub_download
+import gdown
+import zipfile
 
 from src.data.meld import EMOTION_NAME_TO_LABEL
 from src.data.common import save_metadata 
@@ -152,3 +154,42 @@ def download_and_process_meld(
     
     print(f"Successfully processed {len(metadata)} MELD files.")
     return metadata    
+
+def download_meld_audio(output_dir: Path) -> None:
+    """Downloads MP4 archives, and extracts them."""
+    output_dir = Path(output_dir)
+    audio_dir = output_dir / "AudioWAV"
+    metadata_path = output_dir / "metadata.csv"
+
+    audio_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. Download CSVs
+    for split_name, url in CSV_URLS.items():
+        csv_path = output_dir / f"{split_name}_sent_emo.csv"
+        download_with_progress(url, csv_path, f"Downloading {split_name} CSV")
+
+    # 2. Download Raw Master Tar (Videos) from Google Drive
+    print("\nConnecting to Google Drive to download MELD archive...")
+    zip_path = audio_dir / "audio.zip"
+    
+    # Construct the gdown URL
+    audio_gdrive_url = f'https://drive.google.com/uc?id=1wTH5ubF6ZP-JDMn6jU4pwyrEc-stpOwR'
+    
+    # Download using gdown
+    gdown.download(audio_gdrive_url, str(zip_path), quiet=False)
+
+    print(f"\nExtracting {zip_path.name}...")
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(audio_dir)
+        print("Extraction complete.")
+        zip_path.unlink()
+        
+    except zipfile.BadZipFile:
+        print("Error: The downloaded file is not a valid zip archive. Check your File ID.")
+    
+    # Construct the gdown URL
+    metadata_gdrive_url = f'https://drive.google.com/uc?id=1-a0VZjK86w5_rU8gUzjQjh50vNrcYDVP'
+    
+    # Download using gdown
+    gdown.download(metadata_gdrive_url, str(metadata_path), quiet=False)
