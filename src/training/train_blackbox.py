@@ -35,7 +35,7 @@ class TrainingConfig:
     val_size: float = 0.15
     test_size: float = 0.15
     split_strategy: str = SAMPLE_STRATIFIED_SPLIT
-    speaker_column: str = "speaker_id"
+    speaker_column: str = "session_id"
     random_state: int = 42
     num_workers: int = 0
     use_class_weights: bool = True

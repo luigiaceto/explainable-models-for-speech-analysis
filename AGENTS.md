@@ -9,7 +9,7 @@ This project, developed for an Explainable AI course of an MSc in Computer Engin
 - final classification layer
 
 ## Dataset to use
-IEMOCAP, using only the audio utterances and their emotion labels. We ignore any video, text, and motion-capture modalities for model input and predict the full IEMOCAP emotion vocabulary.
+IEMOCAP Speech, using only the audio utterances and their emotion labels. We ignore any video, text, and motion-capture modalities for model input and predict the four preprocessed emotion labels: angry, happy, neutral, and sad.
 
 ## Concepts
 Since the concepts are not annotated for the dataset, we should extract them. To do so, we have to employ python libraries to extract audio information from the traces: in this way we may create interpretable audio concepts to use as ground truth.

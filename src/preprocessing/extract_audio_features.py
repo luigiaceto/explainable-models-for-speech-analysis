@@ -182,6 +182,16 @@ def _metadata_filtered_by_duration(
     return kept_metadata.reset_index(drop=True), removed_short_count, removed_long_count
 
 
+def _metadata_sorted_by_duration(metadata: pd.DataFrame) -> pd.DataFrame:
+    if "duration_seconds" not in metadata.columns:
+        raise ValueError("Cannot sort by duration: missing 'duration_seconds' column")
+    return (
+        metadata
+        .sort_values(["duration_seconds", "file_name"], kind="mergesort")
+        .reset_index(drop=True)
+    )
+
+
 def _validate_existing_duration_filter(
     config_path: Path,
     min_duration_seconds: float | None,
@@ -277,6 +287,7 @@ def extract_audio_features(
         min_duration_seconds,
         max_duration_seconds
     )
+    metadata = _metadata_sorted_by_duration(metadata)
     compute_device = device_or_default(device)
 
     # Audio preprocessor for the encoder: normalizes raw waveforms and pads batches.
@@ -371,6 +382,7 @@ def extract_audio_features(
         "filtered_num_samples": int(len(metadata)),
         "removed_short_audio_count": int(removed_short_audio_count),
         "removed_long_audio_count": int(removed_long_audio_count),
+        "feature_extraction_order": "duration_seconds_ascending",
         "source_metadata": str(metadata_csv),
     }
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")

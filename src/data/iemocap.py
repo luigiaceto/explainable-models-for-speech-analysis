@@ -11,42 +11,44 @@ from torch.utils.data import DataLoader, Dataset
 
 EMOTION_NAMES = [
     "angry",
-    "disgust",
-    "excited",
-    "fear",
-    "frustrated",
     "happy",
     "neutral",
-    "other",
     "sad",
-    "surprise",
 ]
 
 EMOTION_NAME_TO_LABEL = {
     name: index for index, name in enumerate(EMOTION_NAMES)
 }
 
-EMOTION_SCORE_COLUMNS = [
-    "frustrated",
-    "angry",
-    "sad",
-    "disgust",
-    "excited",
-    "fear",
-    "neutral",
-    "surprise",
-    "happy",
-]
+HF_EMOTION_ALIASES = {
+    "ang": "angry",
+    "angry": "angry",
+    "hap": "happy",
+    "happy": "happy",
+    "neu": "neutral",
+    "neutral": "neutral",
+    "sad": "sad",
+}
 
 IEMOCAP_FILENAME_PATTERN = re.compile(r"^(Ses\d{2})([FM])_")
+IEMOCAP_SESSION_PATTERN = re.compile(r"^(?:Session|Ses)(\d+)$", re.IGNORECASE)
 
 
 def normalize_emotion_name(emotion: str) -> str:
     """Normalize IEMOCAP emotion names to the project label vocabulary."""
     normalized = str(emotion).strip().lower().replace("-", "_").replace(" ", "_")
+    normalized = HF_EMOTION_ALIASES.get(normalized, normalized)
     if normalized not in EMOTION_NAME_TO_LABEL:
         raise ValueError(f"Unsupported IEMOCAP emotion label: {emotion!r}")
     return normalized
+
+
+def normalize_session_id(session_name: str) -> str:
+    """Normalize Hugging Face split names such as ``Session1`` to ``Ses01``."""
+    match = IEMOCAP_SESSION_PATTERN.match(str(session_name))
+    if match is None:
+        return str(session_name)
+    return f"Ses{int(match.group(1)):02d}"
 
 
 def parse_iemocap_filename(file_name: str) -> dict[str, object]:
@@ -54,7 +56,7 @@ def parse_iemocap_filename(file_name: str) -> dict[str, object]:
     file_name = Path(file_name).name
     match = IEMOCAP_FILENAME_PATTERN.match(Path(file_name).stem)
     if match is None:
-        raise ValueError(f"Expected IEMOCAP filename, got: {file_name}")
+        return {"file_name": file_name}
 
     session_id, speaker_gender_code = match.groups()
     speaker_id = f"{session_id}{speaker_gender_code}"
@@ -71,10 +73,14 @@ def build_metadata_record(
     emotion: str,
     audio_path: str | Path,
     duration_seconds: float | None = None,
+    source_split: str | None = None,
     extra_fields: dict[str, object] | None = None,
 ) -> dict[str, object]:
     normalized_emotion = normalize_emotion_name(emotion)
     record = parse_iemocap_filename(file_name)
+    if source_split is not None:
+        record["source_split"] = source_split
+        record.setdefault("session_id", normalize_session_id(source_split))
     record.update(
         {
             "emotion": normalized_emotion,

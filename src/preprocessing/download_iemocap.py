@@ -1,51 +1,45 @@
 from __future__ import annotations
+from numbers import Integral
 from pathlib import Path
 import pandas as pd
 import soundfile as sf
-from datasets import Audio, load_dataset
+from datasets import Audio, ClassLabel, load_dataset
 from tqdm.auto import tqdm
 from src.data.iemocap import (
-    EMOTION_SCORE_COLUMNS,
     build_metadata_record,
     save_metadata,
 )
 
 
-DEFAULT_DATASET_NAME = "AbstractTTS/IEMOCAP"
+DEFAULT_DATASET_NAME = "tarasabkar/IEMOCAP_Speech"
 
 
-def _safe_extra_fields(example: dict[str, object]) -> dict[str, object]:
-    extra_fields: dict[str, object] = {}
-    for column in (
-        "gender",
-        "transcription",
-        "major_emotion",
-        "EmoAct",
-        "EmoVal",
-        "EmoDom",
-        "speaking_rate",
-        "pitch_mean",
-        "pitch_std",
-        "rms",
-        "relative_db",
-    ):
-        if column in example and example[column] is not None:
-            extra_fields[column] = example[column]
+def _emotion_to_name(emotion: object, class_label: ClassLabel | None) -> str:
+    if class_label is not None and isinstance(emotion, Integral):
+        return str(class_label.int2str(emotion))
+    return str(emotion)
 
-    for column in EMOTION_SCORE_COLUMNS:
-        if column in example and example[column] is not None:
-            extra_fields[f"{column}_score"] = example[column]
-    return extra_fields
+
+def _all_dataset_items(dataset_name: str, split: str | None):
+    dataset = load_dataset(dataset_name)
+    if split is not None:
+        if split not in dataset:
+            raise ValueError(
+                f"Split '{split}' not found in {dataset_name}. "
+                f"Available splits are: {list(dataset)}"
+            )
+        return [(split, dataset[split])]
+    return list(dataset.items())
 
 
 def download_iemocap(
     output_dir: str | Path,
     dataset_name: str = DEFAULT_DATASET_NAME,
-    split: str = "train",
+    split: str | None = None,
     sampling_rate: int = 16_000,
     overwrite: bool = False,
 ) -> pd.DataFrame:
-    """Download the audio-only IEMOCAP mirror from Hugging Face.
+    """Download the 4-class preprocessed IEMOCAP speech mirror from Hugging Face.
 
     The function writes every WAV file to output_dir/audio and a normalized
     metadata table to output_dir/metadata.csv. Short audio filtering is applied
@@ -62,36 +56,39 @@ def download_iemocap(
         if expected_files and all(path.exists() for path in expected_files):
             return metadata
 
-    dataset = load_dataset(dataset_name, split=split)
-    dataset = dataset.cast_column("audio", Audio(sampling_rate=sampling_rate))
-
     records = []
-    for example in tqdm(dataset, desc="Writing IEMOCAP WAV files"):
-        file_name = example.get("file")
-        if not file_name:
-            audio_path = Path(example["audio"].get("path", ""))
-            file_name = audio_path.name
-        if not file_name:
-            raise ValueError("Could not infer source filename from dataset example")
+    for split_name, split_dataset in _all_dataset_items(dataset_name, split):
+        split_dataset = split_dataset.cast_column("audio", Audio(sampling_rate=sampling_rate))
+        emotion_feature = split_dataset.features.get("emotion")
+        class_label = emotion_feature if isinstance(emotion_feature, ClassLabel) else None
 
-        emotion = example.get("major_emotion")
-        if emotion is None:
-            raise ValueError(f"Missing major_emotion for sample {file_name}")
+        for index, example in enumerate(
+            tqdm(split_dataset, desc=f"Writing IEMOCAP WAV files ({split_name})")
+        ):
+            audio = example["audio"]
+            source_audio_path = Path(audio.get("path") or "")
+            file_name = f"{split_name}_{index:05d}.wav"
+            target_path = audio_dir / file_name
+            if overwrite or not target_path.exists():
+                sf.write(target_path, audio["array"], audio["sampling_rate"])
 
-        audio = example["audio"]
-        target_path = audio_dir / Path(str(file_name)).name
-        if overwrite or not target_path.exists():
-            sf.write(target_path, audio["array"], audio["sampling_rate"])
-
-        duration_seconds = float(len(audio["array"]) / audio["sampling_rate"])
-        record = build_metadata_record(
-            file_name=str(file_name),
-            emotion=str(emotion),
-            audio_path=target_path,
-            duration_seconds=duration_seconds,
-            extra_fields=_safe_extra_fields(example),
-        )
-        records.append(record)
+            duration_seconds = float(len(audio["array"]) / audio["sampling_rate"])
+            emotion = _emotion_to_name(example["emotion"], class_label)
+            record = build_metadata_record(
+                file_name=file_name,
+                emotion=emotion,
+                audio_path=target_path,
+                duration_seconds=duration_seconds,
+                source_split=split_name,
+                extra_fields={
+                    "hf_dataset": dataset_name,
+                    "hf_split": split_name,
+                    "hf_index": index,
+                    "hf_emotion": emotion,
+                    "source_audio_file": source_audio_path.name,
+                },
+            )
+            records.append(record)
 
     metadata = pd.DataFrame(records).sort_values("file_name").reset_index(drop=True)
     save_metadata(metadata, metadata_path)
