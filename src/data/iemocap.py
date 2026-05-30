@@ -73,14 +73,12 @@ def build_metadata_record(
     emotion: str,
     audio_path: str | Path,
     duration_seconds: float | None = None,
-    source_split: str | None = None,
-    extra_fields: dict[str, object] | None = None,
+    session_id: str | None = None,
 ) -> dict[str, object]:
     normalized_emotion = normalize_emotion_name(emotion)
     record = parse_iemocap_filename(file_name)
-    if source_split is not None:
-        record["source_split"] = source_split
-        record.setdefault("session_id", normalize_session_id(source_split))
+    if session_id is not None:
+        record["session_id"] = normalize_session_id(session_id)
     record.update(
         {
             "emotion": normalized_emotion,
@@ -90,9 +88,8 @@ def build_metadata_record(
     )
     if duration_seconds is not None:
         record["duration_seconds"] = float(duration_seconds)
-    if extra_fields is not None:
-        record.update(extra_fields)
-    return record
+    columns = ["file_name", "session_id", "emotion", "label", "audio_path", "duration_seconds"]
+    return {column: record[column] for column in columns if column in record}
 
 
 def save_metadata(metadata: pd.DataFrame, output_path: str | Path) -> Path:

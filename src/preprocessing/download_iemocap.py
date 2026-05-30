@@ -66,7 +66,6 @@ def download_iemocap(
             tqdm(split_dataset, desc=f"Writing IEMOCAP WAV files ({split_name})")
         ):
             audio = example["audio"]
-            source_audio_path = Path(audio.get("path") or "")
             file_name = f"{split_name}_{index:05d}.wav"
             target_path = audio_dir / file_name
             if overwrite or not target_path.exists():
@@ -79,14 +78,7 @@ def download_iemocap(
                 emotion=emotion,
                 audio_path=target_path,
                 duration_seconds=duration_seconds,
-                source_split=split_name,
-                extra_fields={
-                    "hf_dataset": dataset_name,
-                    "hf_split": split_name,
-                    "hf_index": index,
-                    "hf_emotion": emotion,
-                    "source_audio_file": source_audio_path.name,
-                },
+                session_id=split_name,
             )
             records.append(record)
 

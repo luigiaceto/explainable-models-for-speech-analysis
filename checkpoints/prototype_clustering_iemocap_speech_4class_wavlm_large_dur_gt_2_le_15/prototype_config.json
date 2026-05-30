@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "top_n": 1,
+    "label_names": [
+      "angry",
+      "happy",
+      "neutral",
+      "sad"
+    ],
+    "embedding_dim": 128,
+    "similarity": "cosine",
+    "normalization": "l2",
+    "score_rule": "top_n_similarity_sum"
+  },
+  "num_prototypes": 12,
+  "classification_vectors": "prototypes.npy",
+  "extra": {
+    "best_validation": {
+      "k": 3,
+      "top_n": 1,
+      "val_accuracy": 0.7411242603550295,
+      "val_macro_f1": 0.7439817764750861,
+      "val_weighted_f1": 0.7403875373922723,
+      "num_centroids": 12
+    },
+    "embedding_dir": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/data/features/blackbox_iemocap_speech_4class_wavlm_large_dur_gt_2_le_15_penultimate_l2",
+    "grid_search_results": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/checkpoints/prototype_clustering_iemocap_speech_4class_wavlm_large_dur_gt_2_le_15/grid_search_results.csv",
+    "prototype_metadata": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/checkpoints/prototype_clustering_iemocap_speech_4class_wavlm_large_dur_gt_2_le_15/prototype_metadata.csv",
+    "cluster_centroids": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/checkpoints/prototype_clustering_iemocap_speech_4class_wavlm_large_dur_gt_2_le_15/centroids.npy",
+    "cluster_centroid_labels": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/checkpoints/prototype_clustering_iemocap_speech_4class_wavlm_large_dur_gt_2_le_15/centroid_labels.npy",
+    "prototype_source": "nearest_train_sample_to_class_kmeans_centroid"
+  }
+}

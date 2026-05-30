@@ -223,8 +223,6 @@ appunti/
 
 # Project artifacts
 data/raw/
-data/features/
-checkpoints/
 reports/
 *.npy
 *.npz
