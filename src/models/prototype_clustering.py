@@ -20,7 +20,7 @@ class PrototypeClusteringMetadata:
     embedding_dim: int
     similarity: str = "cosine"
     normalization: str = "l2"
-    score_rule: str = "top_n_similarity_sum"
+    score_rule: str = "all_prototypes_similarity_sum"
 
 
 class PrototypeClusteringClassifier:
@@ -56,19 +56,10 @@ class PrototypeClusteringClassifier:
 
     def scores(self, embeddings: np.ndarray) -> np.ndarray:
         similarities = self.similarities(embeddings)
-        top_indices = np.argpartition(
-            -similarities,
-            kth=self.metadata.top_n - 1,
-            axis=1
-        )[:, : self.metadata.top_n]
-
         scores = np.zeros((len(similarities), self.num_classes), dtype=np.float32)
-        row_indices = np.arange(len(similarities))
-        for rank in range(self.metadata.top_n):
-            prototype_indices = top_indices[:, rank]
-            labels = self.prototype_labels[prototype_indices]
-            values = similarities[row_indices, prototype_indices]
-            np.add.at(scores, (row_indices, labels), values)
+        for label in range(self.num_classes):
+            label_mask = self.prototype_labels == label
+            scores[:, label] = similarities[:, label_mask].sum(axis=1)
         return scores
 
     def predict(self, embeddings: np.ndarray) -> np.ndarray:

@@ -19,8 +19,7 @@ from src.models.prototype_clustering import (
 class PrototypeClusteringTrainingConfig:
     embedding_dim: int = 128
     cluster_counts: tuple[int, ...] = (1, 2, 3, 4, 5, 8, 10)
-    top_ns: tuple[int, ...] = (1, 3, 5, 7, 9)
-    num_classes: int = 6
+    num_classes: int = len(EMOTION_NAMES)
     random_state: int = 42
     n_init: int = 10 # parameter of KMeans, try #n_init different initializations and keep the best
     max_iter: int = 300 # since KMeans stops early when convergence is reached, this value does not imply that all runs perform 300 iterations
@@ -212,51 +211,49 @@ def train_prototype_clustering(
             train_metadata=train_metadata,
             config=config
         )
-        for top_n in config.top_ns:
-            if top_n > k * config.num_classes:
-                continue
+        num_prototypes = k * config.num_classes
+        classifier = _build_prototype_classifier(
+            prototypes=prototypes,
+            prototype_labels=prototype_labels,
+            top_n=num_prototypes,
+            config=config
+        )
 
-            classifier = _build_prototype_classifier(
-                prototypes=prototypes,
-                prototype_labels=prototype_labels,
-                top_n=top_n,
-                config=config
+        predictions = classifier.predict(val_embeddings)
+        metrics = compute_summary_classification_metrics(val_labels, predictions)
+        row = {
+            "k": k,
+            "top_n": num_prototypes,
+            "num_voting_prototypes": num_prototypes,
+            "val_accuracy": metrics["accuracy"],
+            "val_macro_f1": metrics["macro_f1"],
+            "val_weighted_f1": metrics["weighted_f1"],
+            "num_centroids": num_prototypes
+        }
+        results.append(row)
+
+        score_key = f"val_{config.monitor_metric}"
+        score = float(row[score_key])
+        tie_breaker = float(row["val_accuracy"])
+        current_best_accuracy = -np.inf if best_row is None else float(best_row["val_accuracy"])
+        improved = score > best_score or (
+            np.isclose(score, best_score) and tie_breaker > current_best_accuracy
+        )
+        if improved:
+            best_score = score
+            best_row = row
+            best_classifier = classifier
+            best_prototype_metadata = prototype_metadata
+            best_centroids = centroids
+            best_centroid_labels = centroid_labels
+
+        if config.verbose:
+            print(
+                f"K={k:02d}, all prototypes={num_prototypes:02d} | "
+                f"val acc {metrics['accuracy']:.4f}, "
+                f"macro F1 {metrics['macro_f1']:.4f}, "
+                f"weighted F1 {metrics['weighted_f1']:.4f}"
             )
-
-            predictions = classifier.predict(val_embeddings)
-            metrics = compute_summary_classification_metrics(val_labels, predictions)
-            row = {
-                "k": k,
-                "top_n": top_n,
-                "val_accuracy": metrics["accuracy"],
-                "val_macro_f1": metrics["macro_f1"],
-                "val_weighted_f1": metrics["weighted_f1"],
-                "num_centroids": k * config.num_classes
-            }
-            results.append(row)
-
-            score_key = f"val_{config.monitor_metric}"
-            score = float(row[score_key])
-            tie_breaker = float(row["val_accuracy"])
-            current_best_accuracy = -np.inf if best_row is None else float(best_row["val_accuracy"])
-            improved = score > best_score or (
-                np.isclose(score, best_score) and tie_breaker > current_best_accuracy
-            )
-            if improved:
-                best_score = score
-                best_row = row
-                best_classifier = classifier
-                best_prototype_metadata = prototype_metadata
-                best_centroids = centroids
-                best_centroid_labels = centroid_labels
-
-            if config.verbose:
-                print(
-                    f"K={k:02d}, top-N={top_n:02d} | "
-                    f"val acc {metrics['accuracy']:.4f}, "
-                    f"macro F1 {metrics['macro_f1']:.4f}, "
-                    f"weighted F1 {metrics['weighted_f1']:.4f}"
-                )
 
     if (
         best_row is None
@@ -298,7 +295,7 @@ def train_prototype_clustering(
         print(
             "\nBest prototype clustering configuration\n"
             f"  K:           {best_row['k']}\n"
-            f"  Top-N:       {best_row['top_n']}\n"
+            f"  Prototypes:  {best_row['num_voting_prototypes']} used for voting\n"
             f"  Validation:  accuracy {best_row['val_accuracy']:.4f}, "
             f"macro F1 {best_row['val_macro_f1']:.4f}, "
             f"weighted F1 {best_row['val_weighted_f1']:.4f}"
