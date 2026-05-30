@@ -13,7 +13,7 @@ class BlackBoxEmotionClassifier(nn.Module):
     -> GELU
     -> Linear LAYER_DIMS[0] -> LAYER_DIMS[1]
     -> GELU
-    -> Linear LAYER_DIMS[1] -> 6 emotions
+    -> Linear LAYER_DIMS[1] -> 4 emotions
     """
 
     def __init__(
