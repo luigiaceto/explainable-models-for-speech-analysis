@@ -9,11 +9,11 @@ class BlackBoxEmotionClassifier(nn.Module):
     audio
     -> frozen audio encoder
     -> pooled embedding
-    -> Linear input_dim -> 256
+    -> Linear input_dim -> LAYER_DIMS[0]
     -> GELU
-    -> Linear 256 -> 128
+    -> Linear LAYER_DIMS[0] -> LAYER_DIMS[1]
     -> GELU
-    -> Linear 128 -> emotion logits
+    -> Linear LAYER_DIMS[1] -> 6 emotions
     """
 
     def __init__(
