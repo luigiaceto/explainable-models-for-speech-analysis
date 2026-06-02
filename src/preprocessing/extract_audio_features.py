@@ -25,8 +25,10 @@ def _load_waveform(
     resamplers: dict[tuple[int, int], torchaudio.transforms.Resample] | None = None
 ) -> np.ndarray:
     waveform, sampling_rate = torchaudio.load(audio_path)
+    # if the audio ha more than 1 channel
     if waveform.shape[0] > 1:
         waveform = waveform.mean(dim=0, keepdim=True)
+    # if the sampling rate isn't the one required by the audio encoder
     if sampling_rate != target_sampling_rate:
         resampler_key = (sampling_rate, target_sampling_rate)
         if resamplers is None:
@@ -185,8 +187,10 @@ def extract_audio_features(
     metadata = _metadata_with_audio_paths(load_metadata(metadata_csv), audio_dir)
     compute_device = device_or_default(device)
 
-    # audio pre-processor for the audio encoder. Takes raw waveforms, apply normalization, pads, ecc.
-    # It prepares the audio to be fed to the encoder model.
+    # audio pre-processor for the audio encoder. Takes raw waveforms, apply normalization, pads,
+    # check if the sampling rate is correct, ecc.
+    #
+    # In general, it prepares the audio to be fed to the encoder model.
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_name)
     # audio encoder which produces embeddings from the input audio
     model = AutoModel.from_pretrained(model_name).to(compute_device)
