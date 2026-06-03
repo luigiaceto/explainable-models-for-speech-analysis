@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
-from src.data.iemocap import EMOTION_NAMES, load_features, make_iemocap_feature_loader
+from src.data.tess import EMOTION_NAMES, load_features, make_tess_feature_loader
 from src.evaluation.metrics import (
     compute_classification_metrics,
     save_classification_evaluation_outputs
@@ -69,7 +69,7 @@ def evaluate_blackbox(
     if not indices:
         raise ValueError(f"Split '{split}' in {splits_csv} does not contain any samples")
 
-    loader = make_iemocap_feature_loader(
+    loader = make_tess_feature_loader(
         features=features,
         metadata=split_metadata,
         split_name=split,

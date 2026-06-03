@@ -10,7 +10,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from src.data.iemocap import EMOTION_NAMES, load_features, make_iemocap_feature_loader
+from src.data.tess import EMOTION_NAMES, load_features, make_tess_feature_loader
 from src.data.split import SAMPLE_STRATIFIED_SPLIT, create_splits
 from src.evaluation.metrics import compute_summary_classification_metrics
 from src.models.blackbox import BlackBoxEmotionClassifier
@@ -35,7 +35,7 @@ class TrainingConfig:
     val_size: float = 0.15
     test_size: float = 0.15
     split_strategy: str = SAMPLE_STRATIFIED_SPLIT
-    speaker_column: str = "session_id"
+    speaker_column: str = "speaker_id"
     random_state: int = 42
     num_workers: int = 0
     use_class_weights: bool = True
@@ -148,7 +148,7 @@ def train_blackbox(
     metadata.to_csv(splits_path, index=False)
 
     device = device_or_default(config.device)
-    train_loader = make_iemocap_feature_loader(
+    train_loader = make_tess_feature_loader(
         features,
         metadata,
         batch_size=config.batch_size,
@@ -156,7 +156,7 @@ def train_blackbox(
         split_name="train",
         shuffle=True
     )
-    val_loader = make_iemocap_feature_loader(
+    val_loader = make_tess_feature_loader(
         features,
         metadata,
         batch_size=config.batch_size,

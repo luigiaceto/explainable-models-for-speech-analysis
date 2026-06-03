@@ -9,7 +9,7 @@ import torchaudio
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 from transformers import AutoFeatureExtractor, AutoModel
-from src.data.iemocap import load_metadata, resolve_feature_paths
+from src.data.tess import load_metadata, resolve_feature_paths
 from src.utils.audio_features import pooled_feature_dim
 from src.utils.naming import model_name_to_slug
 from src.utils.utils import device_or_default

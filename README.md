@@ -1,6 +1,6 @@
 # Explainable Models for Speech Analysis
 
-This project studies speech emotion recognition on IEMOCAP through a black-box
+This project studies speech emotion recognition on TESS through a black-box
 neural baseline and post-hoc prototype-based explanations.
 
 At the moment, the implemented part of the project includes the black-box
@@ -15,7 +15,8 @@ space learned by the black-box classifier.
 
 The current workflow is:
 
-1. download the preprocessed 4-class IEMOCAP Speech dataset;
+1. download the TESS speech emotion dataset from the `AbstractTTS/TESS`
+   Hugging Face mirror;
 2. extract frozen audio encoder embeddings, currently `microsoft/wavlm-large`,
    keeping only audio utterances longer than 2 seconds and no longer than 15 seconds;
 3. apply mean + standard-deviation pooling;
@@ -47,21 +48,18 @@ The notebook defines the active audio encoder with a single tuple,
 value is the encoder hidden-state size before pooling. The final MLP input size
 is derived from the pooling method. Feature and checkpoint directories are also
 derived from the dataset, model name, and duration filter, for example
-`data/features/iemocap_speech_4class_wavlm_large_mean_std_dur_gt_2_le_15/` and
-`checkpoints/blackbox_iemocap_speech_4class_wavlm_large_dur_gt_2_le_15/`.
+`data/features/tess_wavlm_large_mean_std_dur_gt_2_le_15/` and
+`checkpoints/blackbox_tess_wavlm_large_dur_gt_2_le_15/`.
 
-The active target vocabulary uses the four preprocessed IEMOCAP Speech classes:
-angry, happy, neutral, and sad. In this common SER setup, happy and excited are
-merged into the happy class, while minority classes are omitted by the dataset
-mirror.
+The active target vocabulary uses the seven TESS classes: angry, disgust, fear,
+happy, neutral, pleasant surprise, and sad.
 
 ## Current Contents
 
 The current codebase contains:
 
-- an IEMOCAP Speech download pipeline based on the
-  `tarasabkar/IEMOCAP_Speech` Hugging Face mirror;
-- metadata normalization for the preprocessed Hugging Face audio/label format;
+- a TESS download pipeline based only on the `AbstractTTS/TESS` Hugging Face mirror;
+- metadata normalization for the TESS Hugging Face audio/label format;
 - dataset statistics utilities;
 - frozen audio encoder feature extraction with masked mean + standard-deviation pooling;
 - duration filtering during feature extraction, so saved feature metadata is
@@ -87,7 +85,7 @@ The current codebase contains:
   target labels and reports the prototype surrogate agreement accuracy;
 - a per-sample prototype inspection utility that reports class scores, true
   label, predicted label, and the real training prototypes used for one
-  IEMOCAP file name.
+  TESS file name.
 
 Additional explainability analyses beyond the current prototype-based workflow
 are not implemented yet.
@@ -201,16 +199,16 @@ Useful references:
 
 ## Project Structure
 
-- `data/`: local data storage. It is used for downloaded IEMOCAP audio and
+- `data/`: local data storage. It is used for downloaded TESS audio and
   generated feature matrices. This directory is ignored by Git because it can
   become large.
 - `checkpoints/`: local model checkpoint storage. It stores trained model weights,
   split files, and training history. This directory is ignored by Git.
 - `reports/`: local evaluation outputs such as test metrics, predictions, and
   confusion matrix plots. This directory is ignored by Git.
-- `src/data/`: dataset-related code, including IEMOCAP metadata parsing, class
+- `src/data/`: dataset-related code, including TESS metadata parsing, class
   mappings, dataset statistics, feature loading, and the PyTorch feature dataset.
-- `src/preprocessing/`: preprocessing code for downloading IEMOCAP audio and
+- `src/preprocessing/`: preprocessing code for downloading TESS audio and
   extracting frozen audio encoder embeddings and black-box penultimate embeddings.
 - `src/models/`: neural network definitions. Currently it contains the black-box
   MLP classifier and the prototype clustering classifier.

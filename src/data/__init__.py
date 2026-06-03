@@ -1,13 +1,13 @@
 """Dataset utilities."""
 
-from src.data.iemocap import (
+from src.data.tess import (
     EMOTION_NAMES,
     EMOTION_NAME_TO_LABEL,
-    IemocapFeatureDataset,
+    TessFeatureDataset,
     emotion_distribution,
     load_features,
     load_metadata,
-    make_iemocap_feature_loader,
+    make_tess_feature_loader,
     print_dataset_statistics,
 )
 from src.data.split import (
@@ -23,7 +23,7 @@ from src.data.split import (
 __all__ = [
     "EMOTION_NAMES",
     "EMOTION_NAME_TO_LABEL",
-    "IemocapFeatureDataset",
+    "TessFeatureDataset",
     "SAMPLE_STRATIFIED_SPLIT",
     "SPEAKER_INDEPENDENT_SPLIT",
     "SUPPORTED_SPLIT_STRATEGIES",
@@ -33,6 +33,6 @@ __all__ = [
     "emotion_distribution",
     "load_features",
     "load_metadata",
-    "make_iemocap_feature_loader",
+    "make_tess_feature_loader",
     "print_dataset_statistics",
 ]

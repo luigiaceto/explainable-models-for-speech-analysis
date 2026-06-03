@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
-from src.data.iemocap import EMOTION_NAMES, load_features
+from src.data.tess import EMOTION_NAMES, load_features
 from src.evaluation.metrics import compute_summary_classification_metrics
 from src.models.prototype_clustering import (
     PrototypeClusteringClassifier,

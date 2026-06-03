@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 import numpy as np
 import pandas as pd
-from src.data.iemocap import EMOTION_NAMES, load_features
+from src.data.tess import EMOTION_NAMES, load_features
 from src.models.prototype_clustering import load_prototype_clustering_classifier
 
 
