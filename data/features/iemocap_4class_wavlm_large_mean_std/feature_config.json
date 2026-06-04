@@ -1,0 +1,17 @@
+{
+  "model_name": "microsoft/wavlm-large",
+  "model_slug": "wavlm_large",
+  "pooling": "mean_std",
+  "sampling_rate": 16000,
+  "encoder_embedding_dim": 1024,
+  "feature_dim": 2048,
+  "feature_shape": [
+    5531,
+    2048
+  ],
+  "num_workers": 4,
+  "source_num_samples": 5531,
+  "num_samples": 5531,
+  "feature_extraction_order": "duration_seconds_ascending",
+  "source_metadata": "/content/explainable-models-for-speech-analysis/data/raw/iemocap_4class/metadata.csv"
+}
