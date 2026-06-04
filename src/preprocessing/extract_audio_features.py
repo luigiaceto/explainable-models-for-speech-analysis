@@ -122,98 +122,6 @@ def _metadata_with_audio_paths(metadata: pd.DataFrame, audio_dir: Path) -> pd.Da
     return metadata
 
 
-def _audio_duration_seconds(audio_path: str | Path) -> float:
-    info = torchaudio.info(str(audio_path))
-    if info.sample_rate <= 0:
-        raise ValueError(f"Invalid sample rate for audio file: {audio_path}")
-    return float(info.num_frames / info.sample_rate)
-
-
-def _metadata_filtered_by_duration(
-    metadata: pd.DataFrame,
-    min_duration_seconds: float | None,
-    max_duration_seconds: float | None
-) -> tuple[pd.DataFrame, int, int]:
-    if min_duration_seconds is not None and min_duration_seconds < 0.0:
-        raise ValueError(
-            f"min_duration_seconds must be non-negative, got {min_duration_seconds}"
-        )
-    if max_duration_seconds is not None and max_duration_seconds <= 0.0:
-        raise ValueError(
-            f"max_duration_seconds must be positive, got {max_duration_seconds}"
-        )
-    if (
-        min_duration_seconds is not None
-        and max_duration_seconds is not None
-        and max_duration_seconds <= min_duration_seconds
-    ):
-        raise ValueError(
-            "max_duration_seconds must be greater than min_duration_seconds, "
-            f"got {max_duration_seconds} <= {min_duration_seconds}"
-        )
-
-    metadata = metadata.copy()
-    if "duration_seconds" not in metadata.columns:
-        metadata["duration_seconds"] = metadata["audio_path"].map(_audio_duration_seconds)
-
-    keep_mask = pd.Series(True, index=metadata.index)
-    if min_duration_seconds is not None:
-        keep_mask &= metadata["duration_seconds"] > min_duration_seconds
-    if max_duration_seconds is not None:
-        keep_mask &= metadata["duration_seconds"] <= max_duration_seconds
-
-    kept_metadata = metadata[keep_mask].copy()
-    removed_short_count = int(
-        (metadata["duration_seconds"] <= min_duration_seconds).sum()
-        if min_duration_seconds is not None
-        else 0
-    )
-    removed_long_count = int(
-        (metadata["duration_seconds"] > max_duration_seconds).sum()
-        if max_duration_seconds is not None
-        else 0
-    )
-    if kept_metadata.empty:
-        raise ValueError(
-            "No audio samples remain after duration filtering "
-            f"(min_duration_seconds={min_duration_seconds}, "
-            f"max_duration_seconds={max_duration_seconds})"
-        )
-    return kept_metadata.reset_index(drop=True), removed_short_count, removed_long_count
-
-
-def _metadata_sorted_by_duration(metadata: pd.DataFrame) -> pd.DataFrame:
-    if "duration_seconds" not in metadata.columns:
-        raise ValueError("Cannot sort by duration: missing 'duration_seconds' column")
-    return (
-        metadata
-        .sort_values(["duration_seconds", "file_name"], kind="mergesort")
-        .reset_index(drop=True)
-    )
-
-
-def _validate_existing_duration_filter(
-    config_path: Path,
-    min_duration_seconds: float | None,
-    max_duration_seconds: float | None
-) -> None:
-    if not config_path.exists():
-        return
-
-    config = json.loads(config_path.read_text(encoding="utf-8"))
-    existing_min_duration = config.get("min_duration_seconds")
-    existing_max_duration = config.get("max_duration_seconds")
-    if (
-        existing_min_duration != min_duration_seconds
-        or existing_max_duration != max_duration_seconds
-    ):
-        raise ValueError(
-            "Existing features were extracted with different duration filters: "
-            f"min={existing_min_duration}, max={existing_max_duration}. "
-            "Use overwrite=True or a different output_dir to regenerate them."
-        )
-
-
 def _validate_expected_encoder_embedding_dim(
     model_config: Any,
     expected_encoder_embedding_dim: int | None
@@ -243,9 +151,7 @@ def extract_audio_features(
     sampling_rate: int = 16_000,
     device: str | None = None,
     overwrite: bool = False,
-    num_workers: int = 0,
-    min_duration_seconds: float | None = 2.0,
-    max_duration_seconds: float | None = 15.0
+    num_workers: int = 0
 ) -> dict[str, Path]:
     """Extract pooled embeddings from a frozen audio encoder."""
     metadata_csv = Path(metadata_csv)
@@ -262,11 +168,6 @@ def extract_audio_features(
     )
 
     if paths.feature_path.exists() and paths.metadata_path.exists() and not overwrite:
-        _validate_existing_duration_filter(
-            config_path,
-            min_duration_seconds,
-            max_duration_seconds
-        )
         if expected_pooled_feature_dim is not None:
             existing_features = np.load(paths.feature_path, mmap_mode="r")
             if existing_features.shape[1] != expected_pooled_feature_dim:
@@ -281,13 +182,7 @@ def extract_audio_features(
             "config": config_path,
         }
 
-    source_metadata = _metadata_with_audio_paths(load_metadata(metadata_csv), audio_dir)
-    metadata, removed_short_audio_count, removed_long_audio_count = _metadata_filtered_by_duration(
-        source_metadata,
-        min_duration_seconds,
-        max_duration_seconds
-    )
-    metadata = _metadata_sorted_by_duration(metadata)
+    metadata = _metadata_with_audio_paths(load_metadata(metadata_csv), audio_dir)
     compute_device = device_or_default(device)
 
     # Audio preprocessor for the encoder: normalizes raw waveforms and pads batches.
@@ -376,13 +271,7 @@ def extract_audio_features(
         "feature_dim": int(features.shape[1]),
         "feature_shape": list(features.shape),
         "num_workers": num_workers,
-        "min_duration_seconds": min_duration_seconds,
-        "max_duration_seconds": max_duration_seconds,
-        "source_num_samples": int(len(source_metadata)),
-        "filtered_num_samples": int(len(metadata)),
-        "removed_short_audio_count": int(removed_short_audio_count),
-        "removed_long_audio_count": int(removed_long_audio_count),
-        "feature_extraction_order": "duration_seconds_ascending",
+        "num_samples": int(len(metadata)),
         "source_metadata": str(metadata_csv),
     }
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
