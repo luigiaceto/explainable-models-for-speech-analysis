@@ -42,8 +42,7 @@ def download_iemocap(
     """Download the 4-class preprocessed IEMOCAP speech mirror from Hugging Face.
 
     The function writes every WAV file to output_dir/audio and a normalized
-    metadata table to output_dir/metadata.csv. Short audio filtering is applied
-    later during frozen audio encoder feature extraction.
+    metadata table to output_dir/metadata.csv.
     """
     output_dir = Path(output_dir)
     audio_dir = output_dir / "audio"

@@ -17,7 +17,7 @@ The current workflow is:
 
 1. download the preprocessed 4-class IEMOCAP Speech dataset;
 2. extract frozen audio encoder embeddings, currently `microsoft/wavlm-large`,
-   keeping only audio utterances longer than 2 seconds and no longer than 15 seconds;
+   from the full audio mirror;
 3. apply mean + standard-deviation pooling;
 4. train an MLP emotion classifier;
 5. evaluate accuracy, macro F1, weighted F1, classification report, and confusion matrix;
@@ -46,9 +46,9 @@ The notebook defines the active audio encoder with a single tuple,
 `FEATURE_EXTRACTOR = ("microsoft/wavlm-large", 1024)`, where the second
 value is the encoder hidden-state size before pooling. The final MLP input size
 is derived from the pooling method. Feature and checkpoint directories are also
-derived from the dataset, model name, and duration filter, for example
-`data/features/iemocap_speech_4class_wavlm_large_mean_std_dur_gt_2_le_15/` and
-`checkpoints/blackbox_iemocap_speech_4class_wavlm_large_dur_gt_2_le_15/`.
+derived from the dataset, model name, pooling method, and split strategy, for example
+`data/features/iemocap_4class_all_audio_wavlm_large_mean_std/` and
+`checkpoints/blackbox_iemocap_4class_all_audio_wavlm_large_sample_stratified/`.
 
 The active target vocabulary uses the four preprocessed IEMOCAP Speech classes:
 angry, happy, neutral, and sad. In this common SER setup, happy and excited are
@@ -64,8 +64,6 @@ The current codebase contains:
 - metadata normalization for the preprocessed Hugging Face audio/label format;
 - dataset statistics utilities;
 - frozen audio encoder feature extraction with masked mean + standard-deviation pooling;
-- duration filtering during feature extraction, so saved feature metadata is
-  the authoritative dataset used by training and evaluation;
 - duration-based ordering before frozen encoder inference, which reduces
   padding overhead while keeping saved features and metadata aligned;
 - a PyTorch dataset for precomputed audio embeddings;
