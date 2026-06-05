@@ -1,229 +1,124 @@
 # Explainable Models for Speech Analysis
 
-This project studies speech emotion recognition on IEMOCAP through a black-box
-neural baseline and post-hoc prototype-based explanations.
+This project builds an explainable pipeline for speech emotion recognition. It combines a neural black-box classifier with a post-hoc, prototype-based explanation method that works in the representation space learned by the classifier.
 
-At the moment, the implemented part of the project includes the black-box
-baseline and a post-hoc prototype-based explanation method. In this repository,
-the method is called **Post-hoc Latent Prototype Explainer (PLPE)**.
+The implemented explanation method is called **Post-hoc LAtent proTotype Organizer (PLATO)**. This name draws a deliberate parallel to Platonic philosophy, where individual instances in the observable world are understood and categorized based on their resemblance to pure, ideal forms. Similarly, PLATO explains the classification of an unseen test utterance by mapping it to the latent space and revealing the ideal, real-world audio prototypes that most closely embody its emotional characteristics.
 
-PLPE is not an explainable-by-design neural architecture. The black-box model is
-trained first, then its penultimate hidden representation is extracted and used
-to build representative class prototypes. The method explains a prediction by
-showing real training examples that are close to the input in the representation
-space learned by the black-box classifier.
+A black-box model is trained first. Then its penultimate representation is extracted, normalized, clustered, and mapped back to real training utterances. A prediction can then be inspected by looking at the real audio examples that are closest to the sample in the black-box latent space.
 
-The current workflow is:
+The repository is organized around `experiments_guide.ipynb`, which coordinates the full experimental workflow: feature extraction, black-box training, black-box evaluation, latent embedding extraction, prototype construction, prototype-surrogate evaluation, fidelity analysis, and per-sample inspection.
 
-1. download the preprocessed 4-class IEMOCAP Speech dataset;
-2. extract frozen audio encoder embeddings, currently `microsoft/wavlm-large`,
-   from the full audio mirror;
-3. apply mean + standard-deviation pooling;
-4. train an MLP emotion classifier;
-5. evaluate accuracy, macro F1, weighted F1, classification report, and confusion matrix;
+## Current Workflow
+
+The current pipeline is:
+
+1. prepare the speech emotion dataset;
+2. extract frozen audio encoder embeddings, with an audio encoder;
+3. apply a pooling strategy to the encoder embeddings in order to obtain a single dense representation;
+4. train an MLP black-box emotion classifier;
+5. evaluate the black-box with accuracy, macro F1, weighted F1;
 6. extract L2-normalized black-box penultimate embeddings;
-7. fit emotion-specific K-means clusters on those embeddings;
-8. map each centroid to the nearest real training example of the same emotion;
-9. evaluate the resulting prototype-based surrogate classifier;
-10. measure surrogate fidelity against black-box predictions on the test split;
-11. inspect individual predictions through their nearest latent prototypes.
+7. fit class-specific K-means clusters in the black-box latent space;
+8. map each centroid to the nearest real training sample of the same class;
+9. classify samples with a prototype-based surrogate that sums similarities over all saved prototypes of each class;
+10. evaluate the surrogate against ground-truth labels;
+11. measure global fidelity against black-box predictions on the test split;
+12. inspect individual predictions by printing class scores and listening to the closest prototype audio examples.
 
-The prototype component therefore has two roles:
+The prototype component has two roles:
 
-- **post-hoc explainer**: retrieve representative training examples that the
-  black-box maps close to the sample being explained;
-- **prototype-based surrogate classifier**: predict emotions by summing
-  similarities to all prototypes of each class and compare this surrogate against the
-  ground-truth labels.
+- **post-hoc explainer**: retrieve representative training examples that the black-box maps close to the sample being explained;
+- **prototype-based surrogate classifier**: classify samples by summing cosine similarities to all extracted prototypes of each class, then compare the resulting predictions against labels and black-box predictions.
 
-When the goal is to explain the black-box itself, the most relevant evaluation is
-not only classification accuracy against the true labels, but also **fidelity**:
-how often the prototype surrogate agrees with the black-box predictions.
+When the goal is to explain the black-box itself, the key metric is not only classification performance against ground-truth labels, but also **fidelity**: how often the prototypes agrees with the black-box predictions.
 
-The workflow is coordinated from `experiments_guide.ipynb`.
+## Dataset In This Branch
 
-The notebook defines the active audio encoder with a single tuple,
-`FEATURE_EXTRACTOR = ("microsoft/wavlm-large", 1024)`, where the second
-value is the encoder hidden-state size before pooling. The final MLP input size
-is derived from the pooling method. Feature and checkpoint directories are also
-derived from the dataset, model name, pooling method, and split strategy, for example
-`data/features/iemocap_4class_all_audio_wavlm_large_mean_std/` and
-`checkpoints/blackbox_iemocap_4class_all_audio_wavlm_large_sample_stratified/`.
+This branch uses **IEMOCAP Speech** in its preprocessed 4-class setup for speech emotion recognition. The implemented dataset utilities:
 
-The active target vocabulary uses the four preprocessed IEMOCAP Speech classes:
-angry, happy, neutral, and sad. In this common SER setup, happy and excited are
-merged into the happy class, while minority classes are omitted by the dataset
-mirror.
+- download the `tarasabkar/IEMOCAP_Speech` Hugging Face mirror;
+- write the WAV files under `data/raw/iemocap_4class/audio/`;
+- normalize Hugging Face session split names such as `Session1` into session identifiers such as `Ses01`;
+- store normalized metadata fields such as file name, session, emotion, integer label, audio path, and duration;
+- map the four active emotions to integer labels: angry, happy, neutral, and sad;
 
-## Current Contents
+## Implemented Components
 
-The current codebase contains:
+The codebase contains:
 
-- an IEMOCAP Speech download pipeline based on the
-  `tarasabkar/IEMOCAP_Speech` Hugging Face mirror;
-- metadata normalization for the preprocessed Hugging Face audio/label format;
-- dataset statistics utilities;
-- frozen audio encoder feature extraction with masked mean + standard-deviation pooling;
-- duration-based ordering before frozen encoder inference, which reduces
-  padding overhead while keeping saved features and metadata aligned;
-- a PyTorch dataset for precomputed audio embeddings;
-- an MLP black-box emotion classifier;
-- a training loop with configurable train/validation/test split strategy
-  (`sample_stratified` or `speaker_independent`), weighted cross-entropy,
-  AdamW, optional plateau-based learning-rate scheduling, validation-based
-  checkpointing, and early stopping;
-- a separate evaluation pipeline for the saved black-box checkpoint;
-- metric reporting utilities for accuracy, macro F1, weighted F1, per-class
-  precision/recall/F1, predictions, and confusion matrix;
-- extraction of 128-dimensional black-box penultimate embeddings with L2
-  normalization;
-- the Post-hoc Latent Prototype Explainer (PLPE), which fits K-means separately
-  within each emotion class on the training split, maps each centroid to the
-  nearest real training sample of the same emotion, selects K on the
-  validation split, and evaluates once on the test split;
-- a global fidelity utility that treats the black-box test predictions as the
-  target labels and reports the prototype surrogate agreement accuracy;
-- a per-sample prototype inspection utility that reports class scores, true
-  label, predicted label, and the real training prototypes used for one
-  IEMOCAP file name.
-
-Additional explainability analyses beyond the current prototype-based workflow
-are not implemented yet.
+- dataset metadata parsing, feature loading, dataset statistics, and PyTorch dataset utilities;
+- frozen audio encoder feature extraction with pooling;
+- train/validation/test split creation;
+- an MLP black-box classifier for precomputed audio features;
+- black-box training with weighted cross-entropy, AdamW, optional plateau-based learning-rate scheduling, validation checkpointing, and early stopping;
+- black-box evaluation utilities for metrics, predictions, classification reports, and confusion matrices;
+- extraction of L2-normalized black-box penultimate embeddings;
+- PLATO prototype construction through class-specific K-means clustering and centroid-to-real-sample mapping;
+- prototype-surrogate evaluation against ground-truth labels;
+- global fidelity evaluation against black-box predictions;
+- per-sample prototype inspection, including class scores, true label, predicted label, selected sample, and nearby prototype audio files;
+- PCA visualizations for black-box embeddings and prototype overlays.
 
 ## Explanation Method
 
-### Post-hoc Latent Prototype Explainer
+### Post-hoc Latent Prototype Organizer
 
-PLPE explains the trained black-box in the space of its penultimate layer rather
-than in the raw waveform space. The black-box classifier remains unchanged:
+PLATO explains a trained black-box in the space of its penultimate layer rather than in the raw waveform space. The black-box classifier remains unchanged:
 
 ```text
 audio waveform
 -> frozen audio encoder
--> mean + std pooled embedding
+-> pooled embedding
 -> MLP black-box
 -> emotion prediction
 ```
 
-After the black-box is trained, PLPE extracts the 128-dimensional activations
-before the final classification layer:
+After the black-box is trained, PLATO extracts the activations before the final classification layer:
 
 ```text
 pooled audio embedding
 -> trained black-box hidden layers
--> 128D latent representation
+-> latent representation
 -> L2 normalization
 ```
 
 The explainer then:
 
-1. uses only the training split;
-2. groups embeddings by emotion;
+1. uses only the training split to construct prototypes;
+2. groups latent embeddings by ground-truth emotion;
 3. fits K-means separately inside each emotion class;
-4. replaces each centroid with the nearest real training sample, so every
-   prototype is listenable and inspectable;
-5. classifies a new sample by summing cosine similarities to all prototypes of
-   each emotion.
+4. replaces each centroid with the nearest real training sample, so every prototype is listenable and inspectable;
+5. classifies a new sample by summing cosine similarities over all extracted prototypes of each emotion.
 
-This makes the explanation example-based: a prediction can be described as
-"this sample is close, in the black-box latent space, to these representative
-training samples".
+This makes the explanation example-based: a prediction can be described as "this sample is close, in the black-box latent space, to these representative training samples".
 
-### What PLPE Is Not
+### What PLATO Is Not
 
-PLPE should not be described as a prototype network or an explainable-by-design
-model. Unlike architectures such as ProtoPNet, prototypes are not part of the
-model's forward pass during black-box training, and the black-box does not depend
-on them to make its original prediction.
-
-The method is better described as:
-
-- a post-hoc prototype-based explainer;
-- an example-based explanation method;
-- a latent-space prototype analysis of the black-box;
-- a prototype-based surrogate classifier for the black-box representation.
-
-### Methodological Notes
-
-The current implementation clusters samples by ground-truth emotion. This makes
-the prototypes representative of dataset classes in the black-box latent space.
-For a stricter black-box explanation setting, a useful extension is to cluster by
-the black-box predicted class instead. That would make the prototypes represent
-the behavior of the model, including systematic mistakes.
-
-Useful evaluation metrics for PLPE include:
-
-- classification accuracy, macro F1, and weighted F1 against ground-truth labels;
-- global fidelity between the prototype surrogate predictions and black-box
-  predictions, implemented as test-split agreement accuracy in
-  `src/explainability/surrogate_fidelity.py`;
-- local fidelity around individual samples;
-- prototype purity within each emotion or predicted class;
-- representativeness, measured by distances from samples to their nearest
-  prototypes;
-- stability of selected prototypes across random seeds and data splits.
-
-## Related Work Context
-
-Prototype-based deep learning is often associated with explainable-by-design
-models. For example, the original case-based prototype network by Li et al.
-learns prototypes during training in an autoencoder latent space, while ProtoPNet
-classifies images by comparing parts of an input with learned prototypical parts.
-Those methods differ from PLPE because their prototypes participate directly in
-the learned model.
-
-There are also audio-specific prototype methods. "A Model You Can Hear" learns
-playable spectral prototypes for audio identification. AudioProtoPNet adapts
-ProtoPNet-style prototype reasoning to bird sound classification using
-spectrogram embeddings. APEX, a recent audio XAI method, is closer in spirit to
-PLPE because it is post-hoc and explains pre-trained audio classifiers through
-audio prototypes.
-
-Useful references:
-
-- Li et al., "Deep Learning for Case-Based Reasoning through Prototypes:
-  A Neural Network that Explains Its Predictions", 2017:
-  https://arxiv.org/abs/1710.04806
-- Chen et al., "This Looks Like That: Deep Learning for Interpretable Image
-  Recognition", 2019:
-  https://arxiv.org/abs/1806.10574
-- Loiseau et al., "A Model You Can Hear: Audio Identification with Playable
-  Prototypes", 2022:
-  https://arxiv.org/abs/2208.03311
-- Heinrich et al., "AudioProtoPNet: An interpretable deep learning model for
-  bird sound classification", 2024:
-  https://arxiv.org/abs/2404.10420
-- Kawa et al., "APEX: Audio Prototype EXplanations for Classification Tasks",
-  2026:
-  https://arxiv.org/abs/2605.10153
+PLATO should not be described as a prototype network. Unlike architectures such as ProtoPNet, prototypes are not part of the model's forward pass during black-box training, and the black-box does not depend on them to make its original prediction.
 
 ## Project Structure
 
-- `data/`: local data storage. It is used for downloaded IEMOCAP audio and
-  generated feature matrices. This directory is ignored by Git because it can
-  become large.
-- `checkpoints/`: local model checkpoint storage. It stores trained model weights,
-  split files, and training history. This directory is ignored by Git.
-- `reports/`: local evaluation outputs such as test metrics, predictions, and
-  confusion matrix plots. This directory is ignored by Git.
-- `src/data/`: dataset-related code, including IEMOCAP metadata parsing, class
-  mappings, dataset statistics, feature loading, and the PyTorch feature dataset.
-- `src/preprocessing/`: preprocessing code for downloading IEMOCAP audio and
-  extracting frozen audio encoder embeddings and black-box penultimate embeddings.
-- `src/models/`: neural network definitions. Currently it contains the black-box
-  MLP classifier and the prototype clustering classifier.
-- `src/training/`: training code. Currently it contains the black-box training
-  loop, split creation logic, and prototype clustering grid search.
-- `src/evaluation/`: evaluation and metric reporting code for trained models.
-- `src/explainability/`: utilities for prototype-score based inspection and
-  surrogate fidelity evaluation.
-- `src/utils/`: shared helper functions such as seed setup, device selection,
-  and visualization utilities.
+- `experiments_guide.ipynb`: end-to-end notebook for running the experiment.
+- `requirements.txt`: local Python dependencies.
+- `requirements-colab.txt`: dependency set intended for Google Colab.
+- `src/data/`: dataset adapters, metadata parsing, feature loading, statistics, and PyTorch dataset utilities.
+- `src/preprocessing/`: dataset download, frozen audio feature extraction, and black-box latent embedding extraction.
+- `src/models/`: black-box and prototype-surrogate model definitions.
+- `src/training/`: black-box training, split creation, and prototype clustering grid search.
+- `src/evaluation/`: metric computation and evaluation routines for trained models.
+- `src/explainability/`: per-sample prototype inspection and surrogate fidelity utilities.
+- `src/utils/`: naming, device selection, audio feature dimension helpers, and visualization utilities.
+- `data/`: local raw data and generated feature matrices. Large generated artifacts are ignored by Git.
+- `checkpoints/`: local model checkpoints, split files, training histories, and saved prototype files. This directory is ignored by Git.
+- `reports/`: local evaluation outputs such as metrics, predictions, classification reports, confusion matrices, and PCA plots. This directory is ignored by Git.
+
+## Related Work Context
+
+Prototype-based deep learning includes methods where prototypes participate directly in the learned model. For example, the original case-based prototype network by Li et al. learns prototypes during training in an autoencoder latent space, while ProtoPNet classifies images by comparing parts of an input with learned prototypical parts. Those methods differ from PLATO because PLATO adds prototypes only after the black-box has been trained.
+
+There are also audio-specific prototype methods. "A Model You Can Hear" learns playable spectral prototypes for audio identification. AudioProtoPNet adapts ProtoPNet-style prototype reasoning to bird sound classification using spectrogram embeddings. APEX is closer in spirit to PLATO because it is post-hoc and explains pre-trained audio classifiers through audio prototypes.
 
 ## Environment
 
-If you use a CUDA GPU, install the PyTorch build that matches your CUDA version
-before installing the remaining requirements.
-
-For Google Colab, use `requirements-colab.txt` after cloning the repository in
-the runtime.
+If you use a CUDA GPU, install the PyTorch build that matches your CUDA version before installing the remaining requirements.
+For Google Colab, install `requirements-colab.txt` after cloning the repository in the runtime (by running the cell n°0 of the notebook).
