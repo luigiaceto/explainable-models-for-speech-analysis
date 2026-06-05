@@ -25,9 +25,10 @@ def _load_prototype_metadata(model_dir: Path) -> pd.DataFrame | None:
 
 def explain_sample_by_filename(
     embedding_metadata: pd.DataFrame,
-    sample_to_explain: str,
+    sample_to_explain: str | None,
     model_dir: str | Path,
-    embedding_dir: str | Path
+    embedding_dir: str | Path,
+    random_state: int | None = None
 ) -> dict[str, Any]:
     """Return labels, class scores, and prototype neighbors for one sample.
 
@@ -36,10 +37,14 @@ def explain_sample_by_filename(
     """
 
     if sample_to_explain is None:
-        file_name = embedding_metadata.loc[
+        test_file_names = embedding_metadata.loc[
             embedding_metadata["split"] == "test",
             "file_name"
-        ].iloc[0]
+        ].to_numpy()
+        if len(test_file_names) == 0:
+            raise ValueError("No test samples found in embedding metadata")
+        rng = np.random.default_rng(random_state)
+        file_name = str(rng.choice(test_file_names))
     else:
         if sample_to_explain not in set(embedding_metadata["file_name"]):
             raise ValueError(f"Sample not found in saved embeddings: {sample_to_explain}")
