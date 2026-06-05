@@ -2,7 +2,7 @@
 
 This project builds an explainable pipeline for speech emotion recognition. It combines a neural black-box classifier with a post-hoc, prototype-based explanation method that works in the representation space learned by the classifier.
 
-The implemented explanation method is called **Post-hoc LAtent proTotype Organizer (PLATO)**. This name draws a deliberate parallel to Platonic philosophy, where individual instances in the observable world are understood and categorized based on their resemblance to pure, ideal forms. Similarly, PLATO explains the classification of an unseen test utterance by mapping it to the latent space and revealing the ideal, real-world audio prototypes that most closely embody its emotional characteristics.
+The implemented explanation method is called **Post-hoc Latent Audio proTotype Organizer (PLATO)**. This name draws a deliberate parallel to Platonic philosophy, where individual instances in the observable world are understood and categorized based on their resemblance to pure, ideal forms. Similarly, PLATO explains the classification of an unseen test utterance by mapping it to the latent space and revealing the ideal, real-world audio prototypes that most closely embody its emotional characteristics.
 
 A black-box model is trained first. Then its penultimate representation is extracted, normalized, clustered, and mapped back to real training utterances. A prediction can then be inspected by looking at the real audio examples that are closest to the sample in the black-box latent space.
 
@@ -42,6 +42,14 @@ This branch uses **IEMOCAP Speech** in its preprocessed 4-class setup for speech
 - store normalized metadata fields such as file name, session, emotion, integer label, audio path, and duration;
 - map the four active emotions to integer labels: angry, happy, neutral, and sad;
 
+| Class | Utterances | Notes |
+| --- | --- | --- |
+| **Neutral (Neutro)** | 1.708 | - |
+| **Happy (Felice)** | 1.636 | Includes 595 of the original happy + 1.041 excited |
+| **Angry (Rabbioso)** | 1.103 | — |
+| **Sad (Triste)** | 1.084 | — |
+| **Totale complessivo** | **5.531** | - |
+
 ## Implemented Components
 
 The codebase contains:
@@ -61,7 +69,7 @@ The codebase contains:
 
 ## Explanation Method
 
-### Post-hoc Latent Prototype Organizer
+### Post-hoc Audio Latent Prototype Organizer
 
 PLATO explains a trained black-box in the space of its penultimate layer rather than in the raw waveform space. The black-box classifier remains unchanged:
 
