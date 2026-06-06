@@ -16,7 +16,7 @@ The current pipeline is:
 2. extract frozen audio encoder embeddings, with an audio encoder;
 3. apply a pooling strategy to the encoder embeddings in order to obtain a single dense representation;
 4. train an MLP black-box emotion classifier;
-5. evaluate the black-box with accuracy, macro F1, weighted F1;
+5. evaluate the black-box with accuracy and macro F1;
 6. extract L2-normalized black-box penultimate embeddings;
 7. fit class-specific K-means clusters in the black-box latent space;
 8. map each centroid to the nearest real training sample of the same class;

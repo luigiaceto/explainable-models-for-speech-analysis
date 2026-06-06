@@ -20,7 +20,7 @@ def compute_classification_metrics(
     label_names: list[str]
 ) -> dict[str, Any]:
     """Compute aggregate and per-class classification metrics."""
-    report = classification_report(
+    raw_report = classification_report(
         y_true,
         y_pred,
         target_names=label_names,
@@ -28,11 +28,13 @@ def compute_classification_metrics(
         output_dict=True,
         zero_division=0
     )
+    report = {label_name: raw_report[label_name] for label_name in label_names}
+    report["accuracy"] = raw_report["accuracy"]
+    report["macro avg"] = raw_report["macro avg"]
     matrix = confusion_matrix(y_true, y_pred, labels=list(range(len(label_names))))
     return {
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "macro_f1": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
-        "weighted_f1": float(f1_score(y_true, y_pred, average="weighted", zero_division=0)),
         "classification_report": report,
         "confusion_matrix": matrix.tolist()
     }
@@ -46,7 +48,6 @@ def compute_summary_classification_metrics(
     return {
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "macro_f1": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
-        "weighted_f1": float(f1_score(y_true, y_pred, average="weighted", zero_division=0)),
     }
 
 
@@ -58,19 +59,19 @@ def print_classification_metrics(
     """Print classification metrics in a compact notebook-friendly format."""
     print(f"Accuracy:    {metrics['accuracy']:.4f}")
     print(f"Macro F1:    {metrics['macro_f1']:.4f}")
-    print(f"Weighted F1: {metrics['weighted_f1']:.4f}")
 
     if not include_report or "classification_report" not in metrics:
         return
 
     report = metrics["classification_report"]
     if label_names is None:
-        aggregate_rows = {"accuracy", "macro avg", "weighted avg"}
+        aggregate_rows = {"accuracy"}
         label_names = [
             label_name
             for label_name, label_metrics in report.items()
             if (
                 label_name not in aggregate_rows
+                and not label_name.endswith(" avg")
                 and isinstance(label_metrics, dict)
                 and "precision" in label_metrics
             )
