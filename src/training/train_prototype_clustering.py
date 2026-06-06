@@ -23,7 +23,7 @@ class PrototypeClusteringTrainingConfig:
     random_state: int = 42
     n_init: int = 10 # parameter of KMeans, try #n_init different initializations and keep the best
     max_iter: int = 300 # since KMeans stops early when convergence is reached, this value does not imply that all runs perform 300 iterations
-    monitor_metric: str = "macro_f1" # accuracy, weighted_f1
+    monitor_metric: str = "macro_f1" # accuracy, macro_f1
     verbose: bool = True
 
 
@@ -64,11 +64,9 @@ def _build_centroids(
 def _build_prototype_classifier(
     prototypes: np.ndarray, # not centroids, but medoids
     prototype_labels: np.ndarray,
-    top_n: int,
     config: PrototypeClusteringTrainingConfig
 ) -> PrototypeClusteringClassifier:
     metadata = PrototypeClusteringMetadata(
-        top_n=top_n,
         label_names=EMOTION_NAMES,
         embedding_dim=config.embedding_dim
     )
@@ -215,7 +213,6 @@ def train_prototype_clustering(
         classifier = _build_prototype_classifier(
             prototypes=prototypes,
             prototype_labels=prototype_labels,
-            top_n=num_prototypes,
             config=config
         )
 
@@ -223,11 +220,8 @@ def train_prototype_clustering(
         metrics = compute_summary_classification_metrics(val_labels, predictions)
         row = {
             "k": k,
-            "top_n": num_prototypes,
-            "num_voting_prototypes": num_prototypes,
             "val_accuracy": metrics["accuracy"],
             "val_macro_f1": metrics["macro_f1"],
-            "val_weighted_f1": metrics["weighted_f1"],
             "num_centroids": num_prototypes
         }
         results.append(row)
@@ -251,8 +245,7 @@ def train_prototype_clustering(
             print(
                 f"K={k:02d}, all prototypes={num_prototypes:02d} | "
                 f"val acc {metrics['accuracy']:.4f}, "
-                f"macro F1 {metrics['macro_f1']:.4f}, "
-                f"weighted F1 {metrics['weighted_f1']:.4f}"
+                f"macro F1 {metrics['macro_f1']:.4f}"
             )
 
     if (
@@ -295,10 +288,9 @@ def train_prototype_clustering(
         print(
             "\nBest prototype clustering configuration\n"
             f"  K:           {best_row['k']}\n"
-            f"  Prototypes:  {best_row['num_voting_prototypes']} used for voting\n"
+            f"  Prototypes:  {best_row['num_centroids']}\n"
             f"  Validation:  accuracy {best_row['val_accuracy']:.4f}, "
-            f"macro F1 {best_row['val_macro_f1']:.4f}, "
-            f"weighted F1 {best_row['val_weighted_f1']:.4f}"
+            f"macro F1 {best_row['val_macro_f1']:.4f}"
         )
 
     return {

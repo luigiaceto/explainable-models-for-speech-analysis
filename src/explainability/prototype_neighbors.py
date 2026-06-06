@@ -62,13 +62,13 @@ def explain_sample_by_filename(
     predicted_label = int(np.argmax(scores))
     true_label = int(metadata.loc[sample_index, "label"])
 
-    top_n = len(classifier.prototypes)
-    top_indices = np.argsort(-similarities)[:top_n]
+    num_prototypes = len(classifier.prototypes)
+    sorted_prototype_indices = np.argsort(-similarities)
 
     prototype_metadata_by_position = prototype_metadata.set_index("prototype_position")
 
     top_prototypes = []
-    for rank, prototype_index in enumerate(top_indices, start=1):
+    for rank, prototype_index in enumerate(sorted_prototype_indices, start=1):
         prototype_index = int(prototype_index)
         prototype_label = int(classifier.prototype_labels[prototype_index])
 
@@ -96,7 +96,7 @@ def explain_sample_by_filename(
         "true_emotion": EMOTION_NAMES[true_label],
         "predicted_label": predicted_label,
         "predicted_emotion": EMOTION_NAMES[predicted_label],
-        "top_n": top_n,
+        "num_prototypes": num_prototypes,
         "scores": {
             emotion: float(scores[index])
             for index, emotion in enumerate(EMOTION_NAMES)
@@ -114,7 +114,7 @@ def print_prototype_explanation(explanation: dict[str, Any]) -> None:
     for emotion, score in explanation["scores"].items():
         print(f"  {emotion:>7}: {score:.4f}")
 
-    print(f"\nAll {explanation['top_n']} voting prototypes, sorted by similarity:")
+    print(f"\nAll {explanation['num_prototypes']} prototypes, sorted by similarity:")
     for prototype in explanation["top_prototypes"]:
         file_name = prototype.get("prototype_file_name", "<metadata unavailable>")
         print(

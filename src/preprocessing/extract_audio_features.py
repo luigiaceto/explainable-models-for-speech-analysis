@@ -163,11 +163,7 @@ def extract_audio_features(
     output_dir.mkdir(parents=True, exist_ok=True)
     paths = resolve_feature_paths(output_dir)
     config_path = output_dir / "feature_config.json"
-    expected_pooled_feature_dim = (
-        None
-        if expected_encoder_embedding_dim is None
-        else pooled_feature_dim(expected_encoder_embedding_dim, pooling)
-    )
+    expected_pooled_feature_dim = pooled_feature_dim(expected_encoder_embedding_dim, pooling)
 
     if paths.feature_path.exists() and paths.metadata_path.exists() and not overwrite:
         if expected_pooled_feature_dim is not None:
@@ -277,12 +273,12 @@ def extract_audio_features(
         "feature_dim": int(features.shape[1]),
         "feature_shape": list(features.shape),
         "num_workers": num_workers,
-        "source_metadata": str(metadata_csv),
+        "source_metadata": str(metadata_csv)
     }
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
 
     return {
         "features": paths.feature_path,
         "metadata": paths.metadata_path,
-        "config": config_path,
+        "config": config_path
     }

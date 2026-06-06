@@ -101,14 +101,14 @@ def _run_epoch(
                 loss.backward()
                 optimizer.step()
 
-        total_loss += loss.item() * labels.size(0)
+        total_loss += loss.item() * labels.size(0) # re-obtain total loss of the batch from the mean loss of the batch
         y_true.append(labels.detach().cpu().numpy())
         y_pred.append(logits.argmax(dim=1).detach().cpu().numpy())
 
     y_true_array = np.concatenate(y_true)
     y_pred_array = np.concatenate(y_pred)
     metrics = compute_summary_classification_metrics(y_true_array, y_pred_array)
-    metrics["loss"] = total_loss / len(loader.dataset)
+    metrics["loss"] = total_loss / len(loader.dataset) # mean loss for sample (not batch)
     return metrics
 
 
@@ -179,7 +179,7 @@ def train_blackbox(
     if config.lr_scheduler is not None:
         if config.lr_scheduler != "reduce_on_plateau":
             raise ValueError("Only 'reduce_on_plateau' is supported as lr_scheduler")
-        scheduler_mode = "min" if config.scheduler_monitor_metric == "loss" else "max"
+        scheduler_mode = "min" if config.scheduler_monitor_metric == "loss" else "max" # if I want to monitor the loss, then I want it to decrease, otherwise (accuracy, f1, ecc) I want it to increase
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode=scheduler_mode,
@@ -221,7 +221,6 @@ def train_blackbox(
             "val_loss": val_metrics["loss"],
             "val_accuracy": val_metrics["accuracy"],
             "val_macro_f1": val_metrics["macro_f1"],
-            "val_weighted_f1": val_metrics["weighted_f1"],
             "learning_rate": epoch_learning_rate
         }
         history.append(history_row)
@@ -234,14 +233,12 @@ def train_blackbox(
             best_train_metrics = {
                 "loss": float(train_metrics["loss"]),
                 "accuracy": float(train_metrics["accuracy"]),
-                "macro_f1": float(train_metrics["macro_f1"]),
-                "weighted_f1": float(train_metrics["weighted_f1"])
+                "macro_f1": float(train_metrics["macro_f1"])
             }
             best_val_metrics = {
                 "loss": float(val_metrics["loss"]),
                 "accuracy": float(val_metrics["accuracy"]),
-                "macro_f1": float(val_metrics["macro_f1"]),
-                "weighted_f1": float(val_metrics["weighted_f1"])
+                "macro_f1": float(val_metrics["macro_f1"])
             }
             torch.save(
                 {
@@ -272,8 +269,7 @@ def train_blackbox(
                 f"macro F1 {train_metrics['macro_f1']:.4f} | "
                 f"val loss {val_metrics['loss']:.4f}, "
                 f"acc {val_metrics['accuracy']:.4f}, "
-                f"macro F1 {val_metrics['macro_f1']:.4f}, "
-                f"weighted F1 {val_metrics['weighted_f1']:.4f} | "
+                f"macro F1 {val_metrics['macro_f1']:.4f} | "
                 f"lr {epoch_learning_rate:.2e} | "
                 f"{status}"
             )
@@ -295,11 +291,9 @@ def train_blackbox(
         "\nBest checkpoint summary\n"
         f"  Epoch:      {best_epoch}\n"
         f"  Train:      accuracy {best_train_metrics['accuracy']:.4f}, "
-        f"macro F1 {best_train_metrics['macro_f1']:.4f}, "
-        f"weighted F1 {best_train_metrics['weighted_f1']:.4f}\n"
+        f"macro F1 {best_train_metrics['macro_f1']:.4f}\n"
         f"  Validation: accuracy {best_val_metrics['accuracy']:.4f}, "
-        f"macro F1 {best_val_metrics['macro_f1']:.4f}, "
-        f"weighted F1 {best_val_metrics['weighted_f1']:.4f}"
+        f"macro F1 {best_val_metrics['macro_f1']:.4f}"
     )
 
     return {
