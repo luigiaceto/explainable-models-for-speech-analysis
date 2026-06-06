@@ -122,40 +122,6 @@ def _metadata_with_audio_paths(metadata: pd.DataFrame, audio_dir: Path) -> pd.Da
     return metadata
 
 
-def _audio_duration_seconds(audio_path: str | Path) -> float:
-    info = torchaudio.info(str(audio_path))
-    if info.sample_rate <= 0:
-        raise ValueError(f"Invalid sample rate for audio file: {audio_path}")
-    return float(info.num_frames / info.sample_rate)
-
-
-def _metadata_sorted_by_duration(metadata: pd.DataFrame) -> pd.DataFrame:
-    metadata = metadata.copy()
-    if "duration_seconds" not in metadata.columns:
-        metadata["duration_seconds"] = metadata["audio_path"].map(_audio_duration_seconds)
-    return (
-        metadata
-        .sort_values(["duration_seconds", "file_name"], kind="mergesort")
-        .reset_index(drop=True)
-    )
-
-
-def _validate_existing_sample_count(
-    metadata_path: Path,
-    expected_num_samples: int
-) -> None:
-    if not metadata_path.exists():
-        return
-
-    existing_metadata = load_metadata(metadata_path)
-    if len(existing_metadata) != expected_num_samples:
-        raise ValueError(
-            "Existing features do not contain all source metadata samples: "
-            f"{len(existing_metadata)} existing rows, expected {expected_num_samples}. "
-            "Use overwrite=True or a different output_dir to regenerate them."
-        )
-
-
 def _validate_expected_encoder_embedding_dim(
     model_config: Any,
     expected_encoder_embedding_dim: int | None
@@ -201,10 +167,7 @@ def extract_audio_features(
         else pooled_feature_dim(expected_encoder_embedding_dim, pooling)
     )
 
-    source_metadata = _metadata_with_audio_paths(load_metadata(metadata_csv), audio_dir)
-
     if paths.feature_path.exists() and paths.metadata_path.exists() and not overwrite:
-        _validate_existing_sample_count(paths.metadata_path, len(source_metadata))
         if expected_pooled_feature_dim is not None:
             existing_features = np.load(paths.feature_path, mmap_mode="r")
             if existing_features.shape[1] != expected_pooled_feature_dim:
@@ -219,7 +182,7 @@ def extract_audio_features(
             "config": config_path,
         }
 
-    metadata = _metadata_sorted_by_duration(source_metadata)
+    metadata = _metadata_with_audio_paths(load_metadata(metadata_csv), audio_dir)
     compute_device = device_or_default(device)
 
     # Audio preprocessor for the encoder: normalizes raw waveforms and pads batches.
@@ -308,9 +271,6 @@ def extract_audio_features(
         "feature_dim": int(features.shape[1]),
         "feature_shape": list(features.shape),
         "num_workers": num_workers,
-        "source_num_samples": int(len(source_metadata)),
-        "num_samples": int(len(metadata)),
-        "feature_extraction_order": "duration_seconds_ascending",
         "source_metadata": str(metadata_csv)
     }
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
@@ -318,5 +278,5 @@ def extract_audio_features(
     return {
         "features": paths.feature_path,
         "metadata": paths.metadata_path,
-        "config": config_path,
+        "config": config_path
     }

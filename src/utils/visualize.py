@@ -129,11 +129,14 @@ def plot_blackbox_embedding_pca(
         device=device
     )
 
+    # WavLM pooled embeddings
     feature_projection, feature_pca = _pca_projection(
         feature_embeddings,
         plot_metadata,
         random_state
     )
+
+    # black-box penultimate embeddings
     mlp_projection, mlp_pca = _pca_projection(
         mlp_embeddings,
         plot_metadata,

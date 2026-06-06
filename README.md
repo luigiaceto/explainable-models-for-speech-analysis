@@ -16,7 +16,7 @@ The current pipeline is:
 2. extract frozen audio encoder embeddings, with an audio encoder;
 3. apply a pooling strategy to the encoder embeddings in order to obtain a single dense representation;
 4. train an MLP black-box emotion classifier;
-5. evaluate the black-box with accuracy, macro F1, weighted F1;
+5. evaluate the black-box with accuracy, macro F1;
 6. extract L2-normalized black-box penultimate embeddings;
 7. fit class-specific K-means clusters in the black-box latent space;
 8. map each centroid to the nearest real training sample of the same class;
@@ -48,7 +48,7 @@ This branch uses **IEMOCAP Speech** in its preprocessed 4-class setup for speech
 | **Happy (Felice)** | 1.636 | Includes 595 of the original happy + 1.041 excited |
 | **Angry (Rabbioso)** | 1.103 | — |
 | **Sad (Triste)** | 1.084 | — |
-| **Totale complessivo** | **5.531** | - |
+| **Total** | **5.531** | - |
 
 ## Implemented Components
 

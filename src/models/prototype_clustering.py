@@ -15,7 +15,6 @@ def l2_normalize_rows(embeddings: np.ndarray, eps: float = 1e-12) -> np.ndarray:
 
 @dataclass(frozen=True)
 class PrototypeClusteringMetadata:
-    top_n: int
     label_names: list[str]
     embedding_dim: int
     similarity: str = "cosine"
@@ -97,7 +96,8 @@ def load_prototype_clustering_classifier(
 ) -> tuple[PrototypeClusteringClassifier, dict[str, Any]]:
     model_dir = Path(model_dir)
     config = json.loads((model_dir / "prototype_config.json").read_text(encoding="utf-8"))
-    metadata = PrototypeClusteringMetadata(**config["metadata"])
+    metadata_config = dict(config["metadata"])
+    metadata = PrototypeClusteringMetadata(**metadata_config)
     classifier = PrototypeClusteringClassifier(
         metadata=metadata,
         prototypes=np.load(model_dir / "prototypes.npy"),

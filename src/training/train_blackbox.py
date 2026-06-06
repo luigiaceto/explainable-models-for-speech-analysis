@@ -225,7 +225,6 @@ def train_blackbox(
             "val_loss": val_metrics["loss"],
             "val_accuracy": val_metrics["accuracy"],
             "val_macro_f1": val_metrics["macro_f1"],
-            "val_weighted_f1": val_metrics["weighted_f1"],
             "learning_rate": epoch_learning_rate
         }
         history.append(history_row)
@@ -238,14 +237,12 @@ def train_blackbox(
             best_train_metrics = {
                 "loss": float(train_metrics["loss"]),
                 "accuracy": float(train_metrics["accuracy"]),
-                "macro_f1": float(train_metrics["macro_f1"]),
-                "weighted_f1": float(train_metrics["weighted_f1"])
+                "macro_f1": float(train_metrics["macro_f1"])
             }
             best_val_metrics = {
                 "loss": float(val_metrics["loss"]),
                 "accuracy": float(val_metrics["accuracy"]),
-                "macro_f1": float(val_metrics["macro_f1"]),
-                "weighted_f1": float(val_metrics["weighted_f1"])
+                "macro_f1": float(val_metrics["macro_f1"])
             }
             torch.save(
                 {
@@ -276,8 +273,7 @@ def train_blackbox(
                 f"macro F1 {train_metrics['macro_f1']:.4f} | "
                 f"val loss {val_metrics['loss']:.4f}, "
                 f"acc {val_metrics['accuracy']:.4f}, "
-                f"macro F1 {val_metrics['macro_f1']:.4f}, "
-                f"weighted F1 {val_metrics['weighted_f1']:.4f} | "
+                f"macro F1 {val_metrics['macro_f1']:.4f} | "
                 f"lr {epoch_learning_rate:.2e} | "
                 f"{status}"
             )
@@ -299,11 +295,9 @@ def train_blackbox(
         "\nBest checkpoint summary\n"
         f"  Epoch:      {best_epoch}\n"
         f"  Train:      accuracy {best_train_metrics['accuracy']:.4f}, "
-        f"macro F1 {best_train_metrics['macro_f1']:.4f}, "
-        f"weighted F1 {best_train_metrics['weighted_f1']:.4f}\n"
+        f"macro F1 {best_train_metrics['macro_f1']:.4f}\n"
         f"  Validation: accuracy {best_val_metrics['accuracy']:.4f}, "
-        f"macro F1 {best_val_metrics['macro_f1']:.4f}, "
-        f"weighted F1 {best_val_metrics['weighted_f1']:.4f}"
+        f"macro F1 {best_val_metrics['macro_f1']:.4f}"
     )
 
     return {
