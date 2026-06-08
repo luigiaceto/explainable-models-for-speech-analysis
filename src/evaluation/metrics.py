@@ -57,7 +57,8 @@ def print_classification_metrics(
     include_report: bool = True
 ) -> None:
     """Print classification metrics in a compact notebook-friendly format."""
-    print(f"Accuracy:    {metrics['accuracy']:.4f}")
+    print(f"WA:          {metrics['accuracy']:.4f}")
+    print(f"UA:          {metrics["classification_report"]["macro avg"]["recall"]:.4f}")
     print(f"Macro F1:    {metrics['macro_f1']:.4f}")
 
     if not include_report or "classification_report" not in metrics:
