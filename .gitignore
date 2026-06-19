@@ -223,9 +223,6 @@ appunti/
 
 # Project artifacts
 data/raw/
-data/features/blackbox*
-checkpoints/
-reports/
 *.npz
 *.pth
 *.ckpt
@@ -234,3 +231,4 @@ mlruns/
 .vscode
 TODO.md
 AGENTS.md
+paper.md

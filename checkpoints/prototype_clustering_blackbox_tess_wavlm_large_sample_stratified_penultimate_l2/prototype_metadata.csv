@@ -1,0 +1,8 @@
+prototype_position,centroid_label,prototype_label,file_name,emotion,train_embedding_position,dataset_metadata_index,centroid_similarity
+0,0,0,YAF_laud_angry.wav,angry,1357,1967,0.9974014759063721
+1,1,1,YAF_tool_disgust.wav,disgust,1839,2640,0.9977453351020813
+2,2,2,OAF_rough_fear.wav,fear,690,995,0.9974942803382874
+3,3,3,YAF_pike_happy.wav,happy,1570,2271,0.9963988065719604
+4,4,4,YAF_luck_neutral.wav,neutral,1430,2069,0.9985414743423462
+5,5,5,OAF_join_ps.wav,pleasant_surprise,327,480,0.9969240427017212
+6,6,6,YAF_came_sad.wav,sad,1054,1504,0.9981653690338135

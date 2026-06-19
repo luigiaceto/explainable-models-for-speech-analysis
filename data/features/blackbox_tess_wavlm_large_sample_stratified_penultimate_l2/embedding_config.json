@@ -1,0 +1,17 @@
+{
+  "source_feature_dir": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/data/features/tess_wavlm_large_mean_std",
+  "source_checkpoint": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/checkpoints/blackbox_tess_wavlm_large_sample_stratified/best_model.pt",
+  "source_splits": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/checkpoints/blackbox_tess_wavlm_large_sample_stratified/splits.csv",
+  "embedding_dim": 128,
+  "embedding_shape": [
+    2800,
+    128
+  ],
+  "normalization": "l2",
+  "source_model": "microsoft/wavlm-large",
+  "source_pooling": "mean_std",
+  "source_hidden_dims": [
+    256,
+    128
+  ]
+}
