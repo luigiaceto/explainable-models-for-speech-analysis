@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "label_names": [
+      "anger",
+      "disgust",
+      "fear",
+      "happy",
+      "neutral",
+      "sad"
+    ],
+    "embedding_dim": 128,
+    "similarity": "cosine",
+    "normalization": "l2",
+    "score_rule": "all_prototypes_similarity_sum"
+  },
+  "num_prototypes": 12,
+  "classification_vectors": "prototypes.npy",
+  "extra": {
+    "best_validation": {
+      "k": 2,
+      "val_accuracy": 0.7014010507880911,
+      "val_macro_f1": 0.6986231303890048,
+      "num_centroids": 12
+    },
+    "embedding_dir": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/data/features/blackbox_crema_d_wavlm_large_speaker_independent_penultimate_l2",
+    "grid_search_results": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/checkpoints/prototype_clustering_blackbox_crema_d_wavlm_large_speaker_independent_penultimate_l2/grid_search_results.csv",
+    "prototype_metadata": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/checkpoints/prototype_clustering_blackbox_crema_d_wavlm_large_speaker_independent_penultimate_l2/prototype_metadata.csv",
+    "cluster_centroids": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/checkpoints/prototype_clustering_blackbox_crema_d_wavlm_large_speaker_independent_penultimate_l2/centroids.npy",
+    "cluster_centroid_labels": "/Users/luigi/Documents/MSc-PoliTO/II_anno/XAI/progetto/explainable-models-for-speech-analysis/checkpoints/prototype_clustering_blackbox_crema_d_wavlm_large_speaker_independent_penultimate_l2/centroid_labels.npy",
+    "prototype_source": "nearest_train_sample_to_class_kmeans_centroid"
+  }
+}
