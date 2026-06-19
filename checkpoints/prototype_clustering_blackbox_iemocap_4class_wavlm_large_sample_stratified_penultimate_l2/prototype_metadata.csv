@@ -1,0 +1,5 @@
+prototype_position,centroid_label,prototype_label,file_name,emotion,train_embedding_position,dataset_metadata_index,centroid_similarity
+0,0,0,Session4_00149.wav,angry,3125,4435,0.9933023452758789
+1,1,1,Session4_00273.wav,happy,3580,5114,0.9876596927642822
+2,2,2,Session3_00749.wav,neutral,1401,1965,0.9882876873016357
+3,3,3,Session4_00008.wav,sad,3373,4807,0.9929713606834412
