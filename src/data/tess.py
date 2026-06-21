@@ -16,7 +16,7 @@ EMOTION_NAMES = [
     "happy",
     "neutral",
     "pleasant_surprise",
-    "sad",
+    "sad"
 ]
 
 EMOTION_NAME_TO_LABEL = {
@@ -26,25 +26,20 @@ EMOTION_NAME_TO_LABEL = {
 HF_EMOTION_ALIASES = {
     "angry": "angry",
     "disgust": "disgust",
-    "disgusted": "disgust",
     "fear": "fear",
-    "fearful": "fear",
     "happy": "happy",
     "neutral": "neutral",
-    "pleasant_surprise": "pleasant_surprise",
-    "pleasant surprise": "pleasant_surprise",
-    "pleasant-surprise": "pleasant_surprise",
     "ps": "pleasant_surprise",
-    "sad": "sad",
+    "sad": "sad"
 }
 
 TESS_FILENAME_PATTERN = re.compile(
     r"^(?P<speaker_id>[OY]AF)_(?P<word>.+)_(?P<emotion>angry|disgust|fear|happy|neutral|ps|sad)$",
-    re.IGNORECASE,
+    re.IGNORECASE
 )
 TESS_SPEAKER_GROUPS = {
     "OAF": "older_adult_female",
-    "YAF": "younger_adult_female",
+    "YAF": "younger_adult_female"
 }
 
 
@@ -73,7 +68,7 @@ def parse_tess_filename(file_name: str) -> dict[str, object]:
         "speaker_group": TESS_SPEAKER_GROUPS.get(speaker_id, speaker_id.lower()),
         "speaker_gender": "female",
         "word": word,
-        "file_emotion": file_emotion,
+        "file_emotion": file_emotion
     }
 
 
@@ -83,7 +78,7 @@ def build_metadata_record(
     audio_path: str | Path,
     duration_seconds: float | None = None,
     gender: str | None = None,
-    transcription: str | None = None,
+    transcription: str | None = None
 ) -> dict[str, object]:
     normalized_emotion = normalize_emotion_name(emotion)
     record = parse_tess_filename(file_name)
@@ -115,7 +110,7 @@ def build_metadata_record(
         "emotion",
         "label",
         "audio_path",
-        "duration_seconds",
+        "duration_seconds"
     ]
     return {column: record[column] for column in columns if column in record}
 

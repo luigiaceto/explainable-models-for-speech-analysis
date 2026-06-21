@@ -125,7 +125,6 @@ def evaluate_clustering_surrogate_fidelity(
     return {
         "split": split,
         "accuracy": fidelity_accuracy,
-        "fidelity_accuracy": fidelity_accuracy,
         "num_correct": num_correct,
         "num_samples": num_samples,
         "blackbox_predictions": blackbox_predictions.tolist(),
