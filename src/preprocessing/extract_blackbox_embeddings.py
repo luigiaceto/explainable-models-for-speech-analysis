@@ -44,7 +44,7 @@ def extract_blackbox_penultimate_embeddings_l2(
         return {
             "features": paths.feature_path,
             "metadata": paths.metadata_path,
-            "config": config_path,
+            "config": config_path
         }
 
     features, feature_metadata = load_features(feature_dir, mmap_mode="r")
@@ -82,7 +82,7 @@ def extract_blackbox_penultimate_embeddings_l2(
         "normalization": "l2",
         "source_model": blackbox_config.get("feature_extractor_name"),
         "source_pooling": blackbox_config.get("pooling"),
-        "source_hidden_dims": blackbox_config.get("hidden_dims"),
+        "source_hidden_dims": blackbox_config.get("hidden_dims")
     }
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
 

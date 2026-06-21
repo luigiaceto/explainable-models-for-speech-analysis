@@ -13,7 +13,7 @@ EMOTION_NAMES = [
     "angry",
     "happy",
     "neutral",
-    "sad",
+    "sad"
 ]
 
 EMOTION_NAME_TO_LABEL = {
@@ -27,10 +27,9 @@ HF_EMOTION_ALIASES = {
     "happy": "happy",
     "neu": "neutral",
     "neutral": "neutral",
-    "sad": "sad",
+    "sad": "sad"
 }
 
-IEMOCAP_FILENAME_PATTERN = re.compile(r"^(Ses\d{2})([FM])_")
 IEMOCAP_SESSION_PATTERN = re.compile(r"^(?:Session|Ses)(\d+)$", re.IGNORECASE)
 
 
@@ -51,23 +50,6 @@ def normalize_session_id(session_name: str) -> str:
     return f"Ses{int(match.group(1)):02d}"
 
 
-def parse_iemocap_filename(file_name: str) -> dict[str, object]:
-    """Parse IEMOCAP filenames such as ``Ses01F_impro01_F000.wav``."""
-    file_name = Path(file_name).name
-    match = IEMOCAP_FILENAME_PATTERN.match(Path(file_name).stem)
-    if match is None:
-        return {"file_name": file_name}
-
-    session_id, speaker_gender_code = match.groups()
-    speaker_id = f"{session_id}{speaker_gender_code}"
-    return {
-        "file_name": file_name,
-        "session_id": session_id,
-        "speaker_id": speaker_id,
-        "speaker_gender_code": speaker_gender_code,
-    }
-
-
 def build_metadata_record(
     file_name: str,
     emotion: str,
@@ -76,16 +58,14 @@ def build_metadata_record(
     session_id: str | None = None,
 ) -> dict[str, object]:
     normalized_emotion = normalize_emotion_name(emotion)
-    record = parse_iemocap_filename(file_name)
+    record = {
+        "file_name": Path(file_name).name,
+        "emotion": normalized_emotion,
+        "label": EMOTION_NAME_TO_LABEL[normalized_emotion],
+        "audio_path": str(audio_path)
+    }
     if session_id is not None:
         record["session_id"] = normalize_session_id(session_id)
-    record.update(
-        {
-            "emotion": normalized_emotion,
-            "label": EMOTION_NAME_TO_LABEL[normalized_emotion],
-            "audio_path": str(audio_path),
-        }
-    )
     if duration_seconds is not None:
         record["duration_seconds"] = float(duration_seconds)
     columns = ["file_name", "session_id", "emotion", "label", "audio_path", "duration_seconds"]
@@ -126,8 +106,6 @@ def emotion_distribution(metadata: pd.DataFrame) -> pd.DataFrame:
 def print_dataset_statistics(metadata: pd.DataFrame) -> None:
     """Print compact IEMOCAP statistics useful in notebooks and scripts."""
     print(f"Total samples: {len(metadata)}")
-    if "speaker_id" in metadata.columns:
-        print(f"Speakers: {metadata['speaker_id'].nunique()}")
     if "session_id" in metadata.columns:
         print(f"Sessions: {metadata['session_id'].nunique()}")
     if "duration_seconds" in metadata.columns:
@@ -187,7 +165,7 @@ class IemocapFeatureDataset(Dataset):
         self.features = torch.as_tensor(np.asarray(features), dtype=torch.float32)
         self.labels = torch.as_tensor(
             metadata["label"].to_numpy(dtype=np.int64),
-            dtype=torch.long,
+            dtype=torch.long
         )
         self.metadata = metadata.reset_index(drop=True)
         self.indices = (
@@ -219,12 +197,12 @@ def make_iemocap_feature_loader(
     dataset = IemocapFeatureDataset(
         features=features,
         metadata=metadata,
-        indices=indices,
+        indices=indices
     )
     return DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        pin_memory=torch.cuda.is_available(),
+        pin_memory=torch.cuda.is_available()
     )

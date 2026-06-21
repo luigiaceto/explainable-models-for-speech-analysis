@@ -19,7 +19,7 @@ def _validate_split_sizes(train_size: float, val_size: float, test_size: float) 
     for split_name, split_size in {
         "train_size": train_size,
         "val_size": val_size,
-        "test_size": test_size,
+        "test_size": test_size
     }.items():
         if split_size <= 0.0:
             raise ValueError(f"{split_name} must be positive, got {split_size}")
@@ -121,7 +121,7 @@ def _validate_speaker_independent_split(
     for first_split, second_split in (
         ("train", "val"),
         ("train", "test"),
-        ("val", "test"),
+        ("val", "test")
     ):
         overlap = speakers_by_split[first_split].intersection(speakers_by_split[second_split])
         if overlap:
