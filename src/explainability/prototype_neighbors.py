@@ -16,15 +16,17 @@ def _find_sample_index(metadata: pd.DataFrame, file_name: str) -> int:
     return int(matches[0])
 
 
-def _load_prototype_metadata(model_dir: Path) -> pd.DataFrame | None:
+def _load_prototype_metadata(model_dir: Path) -> pd.DataFrame:
     metadata_path = model_dir / "prototype_metadata.csv"
     if not metadata_path.exists():
-        return None
+        raise FileNotFoundError(
+            f"Prototype metadata not found: {metadata_path}. "
+            "Run prototype clustering before explaining samples."
+        )
     return pd.read_csv(metadata_path)
 
 
 def explain_sample_by_filename(
-    embedding_metadata: pd.DataFrame,
     sample_to_explain: str | None,
     model_dir: str | Path,
     embedding_dir: str | Path,
@@ -36,9 +38,14 @@ def explain_sample_by_filename(
     the original WAV file, the audio encoder, or the black-box classifier.
     """
 
+    model_dir = Path(model_dir)
+    classifier, _ = load_prototype_clustering_classifier(model_dir)
+    embeddings, metadata = load_features(embedding_dir)
+    prototype_metadata = _load_prototype_metadata(model_dir)
+
     if sample_to_explain is None:
-        test_file_names = embedding_metadata.loc[
-            embedding_metadata["split"] == "test",
+        test_file_names = metadata.loc[
+            metadata["split"] == "test",
             "file_name"
         ].to_numpy()
         if len(test_file_names) == 0:
@@ -46,14 +53,9 @@ def explain_sample_by_filename(
         rng = np.random.default_rng(random_state)
         file_name = str(rng.choice(test_file_names))
     else:
-        if sample_to_explain not in set(embedding_metadata["file_name"]):
+        if sample_to_explain not in set(metadata["file_name"]):
             raise ValueError(f"Sample not found in saved embeddings: {sample_to_explain}")
         file_name = sample_to_explain
-
-    model_dir = Path(model_dir)
-    classifier, _ = load_prototype_clustering_classifier(model_dir)
-    embeddings, metadata = load_features(embedding_dir)
-    prototype_metadata = _load_prototype_metadata(model_dir)
 
     sample_index = _find_sample_index(metadata, file_name)
     sample_embedding = embeddings[sample_index : sample_index + 1]

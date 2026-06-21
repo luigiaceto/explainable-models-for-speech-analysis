@@ -73,6 +73,16 @@ def _current_learning_rate(optimizer: torch.optim.Optimizer) -> float:
     return float(optimizer.param_groups[0]["lr"])
 
 
+def _metric_mode(metric_name: str) -> str:
+    return "min" if metric_name == "loss" else "max"
+
+
+def _is_improved(score: float, best_score: float, metric_name: str) -> bool:
+    if _metric_mode(metric_name) == "min":
+        return score < best_score
+    return score > best_score
+
+
 def _run_epoch(
     model: nn.Module,
     loader: DataLoader,
@@ -179,7 +189,7 @@ def train_blackbox(
     if config.lr_scheduler is not None:
         if config.lr_scheduler != "reduce_on_plateau":
             raise ValueError("Only 'reduce_on_plateau' is supported as lr_scheduler")
-        scheduler_mode = "min" if config.scheduler_monitor_metric == "loss" else "max" # if I want to monitor the loss, then I want it to decrease, otherwise (accuracy, f1, ecc) I want it to increase
+        scheduler_mode = _metric_mode(config.scheduler_monitor_metric)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode=scheduler_mode,
@@ -188,7 +198,7 @@ def train_blackbox(
             min_lr=config.scheduler_min_lr
         )
 
-    best_score = -np.inf
+    best_score = np.inf if _metric_mode(config.monitor_metric) == "min" else -np.inf
     best_epoch = 0
     epochs_without_improvement = 0
     history = []
@@ -225,7 +235,7 @@ def train_blackbox(
         }
         history.append(history_row)
 
-        improved = score > best_score
+        improved = _is_improved(score, best_score, config.monitor_metric)
         if improved:
             best_score = score
             best_epoch = epoch
@@ -251,7 +261,7 @@ def train_blackbox(
                     "best_val_metrics": best_val_metrics,
                     "splits_path": str(splits_path)
                 },
-                checkpoint_path,
+                checkpoint_path
             )
         else:
             epochs_without_improvement += 1

@@ -192,9 +192,6 @@ def train_prototype_clustering(
     best_centroid_labels: np.ndarray | None = None
 
     for k in config.cluster_counts:
-        if k <= 0:
-            raise ValueError(f"cluster_counts must be positive, got {k}")
-
         centroids, centroid_labels = _build_centroids(
             train_embeddings=train_embeddings,
             train_labels=train_labels,
