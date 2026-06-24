@@ -59,14 +59,11 @@ def _classification_loss(
         return nn.CrossEntropyLoss()
 
     train_labels = metadata.loc[metadata["split"] == "train", "label"].to_numpy()
-    present_classes = np.unique(train_labels)
-    computed_weights = compute_class_weight(
+    weights = compute_class_weight(
         class_weight="balanced",
-        classes=present_classes,
+        classes=np.arange(config.num_classes),
         y=train_labels
     )
-    weights = np.zeros(config.num_classes, dtype=np.float32)
-    weights[present_classes] = computed_weights
     return nn.CrossEntropyLoss(
         weight=torch.as_tensor(weights, dtype=torch.float32, device=device),
         label_smoothing=0.05
