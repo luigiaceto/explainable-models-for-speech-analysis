@@ -1,3 +1,5 @@
+<img width="698" height="196" alt="Screenshot 2026-06-30 alle 22 40 28" src="https://github.com/user-attachments/assets/cca247cc-11f5-4c8d-b6a4-f8b6eadd4e42" />
+
 # Explainable Models for Speech Analysis - PLATO
 
 This project builds an explainable pipeline for speech emotion recognition (SER). It combines a neural black-box classifier with a post-hoc, prototype-based explanation method that works in the representation space learned by the classifier.
